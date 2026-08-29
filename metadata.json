@@ -1,0 +1,6 @@
+{
+  "name": "Майстерня Треків",
+  "description": "Кастомні 3D-друковані аксесуари та розширення для дитячих дерев'яних залізниць (Brio, IKEA, Liliputien та інші). Створюємо унікальні стрілки, розв'язки, переходи та депо, які ідеально сумісні зі стандартними дерев'яними рейками.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
