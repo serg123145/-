@@ -81,8 +81,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const discount = propDiscount || 0;
   const subtotal = calculatedSubtotal;
 
-  const deliveryFee = subtotal - discount >= 2000 ? 0 : 79;
-  const totalAmount = Math.max(0, subtotal - discount + deliveryFee);
+  const deliveryFee = 0;
+  const totalAmount = Math.max(0, subtotal - discount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -532,11 +532,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span>-{discount.toLocaleString('uk-UA')} грн</span>
                   </div>
                 )}
-                <div className="flex justify-between text-slate-600">
-                  <span>Вартість доставки:</span>
-                  <span className="font-semibold text-slate-800">
-                    {deliveryFee === 0 ? 'Безкоштовно' : `${deliveryFee} грн`}
-                  </span>
+                <div className="flex justify-between text-slate-500 text-[11px]">
+                  <span>Доставка:</span>
+                  <span className="font-medium text-slate-600 italic">За тарифами перевізника</span>
                 </div>
                 <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
                   <span>До сплати:</span>

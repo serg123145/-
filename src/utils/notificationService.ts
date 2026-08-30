@@ -103,8 +103,8 @@ ${order.comment ? `💬 Коментар: ${order.comment}\n` : ''}
 📦 Товари:
 ${itemsList}
 
-💰 Разом до сплати: ${order.totalAmount} грн
-(Сума: ${order.subtotal} грн, Доставка: ${order.deliveryFee} грн${order.discount ? `, Знижка: -${order.discount} грн` : ''})`;
+💰 Разом до сплати: ${order.totalAmount} грн${order.discount ? ` (Знижка: -${order.discount} грн)` : ''}
+(Доставка сплачується окремо за тарифами пошти)`;
 }
 
 // Generate direct Viber message links

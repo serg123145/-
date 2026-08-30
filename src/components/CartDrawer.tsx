@@ -40,12 +40,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const FREE_SHIPPING_THRESHOLD = 2000;
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const discountAmount = promoApplied ? Math.round(subtotal * promoDiscountRate) : 0;
-  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - (subtotal - discountAmount));
-  const shippingCost = subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0 ? 0 : 79;
-  const total = Math.max(0, subtotal - discountAmount + shippingCost);
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,23 +88,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </button>
           </div>
 
-          {/* Free Shipping Progress bar */}
-          <div className="bg-emerald-50/70 p-3.5 border-b border-emerald-100">
-            <div className="flex items-center justify-between text-xs font-semibold text-emerald-950 mb-1.5">
-              <span className="flex items-center gap-1">
-                <Truck className="w-3.5 h-3.5 text-emerald-600" />
-                {remainingForFreeShipping === 0 
-                  ? 'Ура! Вам доступна безкоштовна доставка' 
-                  : `Додайте товарів ще на ${remainingForFreeShipping.toLocaleString('uk-UA')} грн для безкоштовної доставки`}
-              </span>
-              <span>{Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100))}%</span>
-            </div>
-            <div className="w-full bg-emerald-200/60 h-2 rounded-full overflow-hidden">
-              <div 
-                className="bg-emerald-600 h-full rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100)}%` }}
-              />
-            </div>
+          {/* Delivery Info Banner */}
+          <div className="bg-amber-500/10 px-4 py-3 border-b border-amber-500/20 flex items-center justify-between text-xs font-semibold text-slate-800">
+            <span className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Швидка доставка Новою Поштою та Укрпоштою</span>
+            </span>
+            <span className="text-[11px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md font-bold">1–2 дні</span>
           </div>
 
           {/* Items List */}
@@ -243,15 +230,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 )}
 
-                <div className="flex justify-between">
+                <div className="flex justify-between text-slate-500 text-[11px]">
                   <span>Доставка:</span>
-                  <span className="font-semibold text-slate-800">
-                    {shippingCost === 0 ? (
-                      <span className="text-emerald-600 font-bold">Безкоштовно</span>
-                    ) : (
-                      `${shippingCost} грн`
-                    )}
-                  </span>
+                  <span className="font-medium text-slate-600 italic">За тарифами перевізника</span>
                 </div>
 
                 <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
