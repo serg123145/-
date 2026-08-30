@@ -28,6 +28,26 @@ import { Product, CartItem, SortOption, OrderDetails, AdminUser, StoreInfo, Trus
 import { DEFAULT_PRODUCTS } from './data/defaultCatalog';
 import { DEFAULT_STORE_INFO } from './data/defaultStoreInfo';
 import { DEFAULT_NOTIFICATION_SETTINGS, dispatchNewOrderNotifications } from './utils/notificationService';
+import { 
+  subscribeToProducts, 
+  subscribeToOrders, 
+  subscribeToStoreInfo, 
+  subscribeToNotificationSettings,
+  saveProductToFirestore,
+  deleteProductFromFirestore,
+  saveOrderToFirestore,
+  updateOrderStatusInFirestore,
+  updateOrderTrackingInFirestore,
+  updateOrderNotesInFirestore,
+  deleteOrderFromFirestore,
+  clearAllOrdersInFirestore,
+  saveStoreInfoToFirestore,
+  saveNotificationSettingsToFirestore,
+  seedProductsIfEmpty,
+  seedStoreInfoIfEmpty,
+  resetCatalogInFirestore
+} from './services/firestoreService';
+import { isFirebaseConfigured } from './services/firebase';
 import { Header } from './components/Header';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailsModal } from './components/ProductDetailsModal';
@@ -99,6 +119,73 @@ export default function App() {
     }
     return DEFAULT_STORE_INFO;
   });
+
+  // Firestore Cloud connection state
+  const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured);
+
+  // Initialize and synchronize with Firebase Firestore in real-time
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    let isMounted = true;
+
+    // Seed database with default data if fresh
+    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(console.error);
+    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(console.error);
+
+    // 1. Live Products listener
+    const unsubProducts = subscribeToProducts(
+      (liveProducts) => {
+        if (isMounted && liveProducts.length > 0) {
+          setProducts(liveProducts);
+          localStorage.setItem('trk_products_catalog', JSON.stringify(liveProducts));
+          setIsCloudConnected(true);
+        }
+      },
+      () => setIsCloudConnected(false)
+    );
+
+    // 2. Live Orders listener
+    const unsubOrders = subscribeToOrders(
+      (liveOrders) => {
+        if (isMounted && liveOrders) {
+          setOrders(liveOrders);
+          localStorage.setItem('trk_orders_history', JSON.stringify(liveOrders));
+        }
+      },
+      () => setIsCloudConnected(false)
+    );
+
+    // 3. Live Store Info listener
+    const unsubStoreInfo = subscribeToStoreInfo(
+      (liveInfo) => {
+        if (isMounted && liveInfo && liveInfo.brandName) {
+          setStoreInfo(liveInfo);
+          localStorage.setItem('trk_store_info', JSON.stringify(liveInfo));
+        }
+      },
+      () => setIsCloudConnected(false)
+    );
+
+    // 4. Live Notification Settings listener
+    const unsubSettings = subscribeToNotificationSettings(
+      (liveSettings) => {
+        if (isMounted && liveSettings) {
+          setNotificationSettings(liveSettings);
+          localStorage.setItem('trk_notification_settings', JSON.stringify(liveSettings));
+        }
+      },
+      () => setIsCloudConnected(false)
+    );
+
+    return () => {
+      isMounted = false;
+      unsubProducts();
+      unsubOrders();
+      unsubStoreInfo();
+      unsubSettings();
+    };
+  }, []);
 
   // Save store info when updated
   useEffect(() => {
@@ -221,32 +308,38 @@ export default function App() {
   // Order Handlers
   const handleUpdateOrderStatus = (orderId: string, status: OrderDetails['status']) => {
     setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, status } : o));
+    updateOrderStatusInFirestore(orderId, status).catch(console.error);
     showToast(`Статус замовлення #${orderId} змінено на "${status}"`, 'info');
   };
 
   const handleUpdateOrderTracking = (orderId: string, trackingNumber: string) => {
     setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, trackingNumber } : o));
+    updateOrderTrackingInFirestore(orderId, trackingNumber).catch(console.error);
     showToast(`ТТН для замовлення #${orderId} збережено!`, 'success');
   };
 
   const handleUpdateOrderNotes = (orderId: string, internalNotes: string) => {
     setOrders(prev => prev.map(o => o.orderId === orderId ? { ...o, internalNotes } : o));
+    updateOrderNotesInFirestore(orderId, internalNotes).catch(console.error);
   };
 
   const handleDeleteOrder = (orderId: string) => {
     setOrders(prev => prev.filter(o => o.orderId !== orderId));
+    deleteOrderFromFirestore(orderId).catch(console.error);
     showToast(`Замовлення #${orderId} видалено`, 'warning');
   };
 
   const handleClearAllOrders = () => {
     setOrders([]);
     localStorage.removeItem('trk_orders_history');
+    clearAllOrdersInFirestore().catch(console.error);
     showToast('Історію замовлень очищено', 'info');
   };
 
   const handleSaveNotificationSettings = (newSettings: NotificationSettings) => {
     setNotificationSettings(newSettings);
     localStorage.setItem('trk_notification_settings', JSON.stringify(newSettings));
+    saveNotificationSettingsToFirestore(newSettings).catch(console.error);
     showToast('Налаштування сповіщень (Telegram / Viber / Webhook) збережено!', 'success');
   };
 
@@ -275,6 +368,7 @@ export default function App() {
     };
 
     setOrders(prev => [testOrder, ...prev]);
+    saveOrderToFirestore(testOrder).catch(console.error);
     dispatchNewOrderNotifications(testOrder, notificationSettings, storeInfo.brandName);
     showToast(`Створено тестове замовлення #${testOrder.orderId} та надіслано сповіщення!`, 'success');
   };
@@ -287,12 +381,14 @@ export default function App() {
   const handleSaveStoreInfo = (newInfo: StoreInfo) => {
     setStoreInfo(newInfo);
     localStorage.setItem('trk_store_info', JSON.stringify(newInfo));
+    saveStoreInfoToFirestore(newInfo).catch(console.error);
     showToast('Інформаційні блоки магазину успішно оновлено!', 'success');
   };
 
   const handleResetStoreInfo = () => {
     setStoreInfo(DEFAULT_STORE_INFO);
     localStorage.removeItem('trk_store_info');
+    saveStoreInfoToFirestore(DEFAULT_STORE_INFO).catch(console.error);
     showToast('Інформаційні блоки повернуто до стандартних', 'info');
   };
 
@@ -451,16 +547,19 @@ export default function App() {
       createdAt: order.createdAt || new Date().toISOString()
     };
 
-    // Save to orders state & local storage
+    // Save to orders state & Firestore
     setOrders(prev => [formattedOrder, ...prev]);
+    saveOrderToFirestore(formattedOrder).catch(console.error);
 
-    // Decrease stock locally
+    // Decrease stock locally & in Firestore
     setProducts(prev => {
       return prev.map(p => {
         const orderedItem = order.items.find(item => item.product.id === p.id);
         if (orderedItem) {
           const newStock = Math.max(0, p.stock - orderedItem.quantity);
-          return { ...p, stock: newStock, inStock: newStock > 0 };
+          const updatedProd = { ...p, stock: newStock, inStock: newStock > 0 };
+          saveProductToFirestore(updatedProd).catch(console.error);
+          return updatedProd;
         }
         return p;
       });
@@ -496,6 +595,8 @@ export default function App() {
       return [productData, ...prev];
     });
 
+    saveProductToFirestore(productData).catch(console.error);
+
     showToast(
       editingProduct 
         ? `Картку "${productData.title}" успішно оновлено!` 
@@ -513,17 +614,20 @@ export default function App() {
       reviewsCount: 0
     };
     setProducts(prev => [duplicated, ...prev]);
+    saveProductToFirestore(duplicated).catch(console.error);
     showToast(`Створено копію товару "${product.title}"`, 'info');
   };
 
   const handleDeleteProduct = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
+    deleteProductFromFirestore(productId).catch(console.error);
     showToast('Товар видалено з каталогу', 'warning');
   };
 
   const handleResetCatalog = () => {
     setProducts(DEFAULT_PRODUCTS);
     localStorage.removeItem('trk_products_catalog');
+    resetCatalogInFirestore(DEFAULT_PRODUCTS).catch(console.error);
     showToast('Каталог скинуто до початкового асортименту', 'info');
   };
 
@@ -565,6 +669,7 @@ export default function App() {
         newOrdersCount={newOrdersCount}
         totalOrdersCount={orders.length}
         totalProductsCount={products.length}
+        isCloudConnected={isCloudConnected}
       />
 
       {/* Main Content Area */}

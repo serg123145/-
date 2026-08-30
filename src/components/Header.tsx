@@ -13,7 +13,8 @@ import {
   RefreshCw, 
   KeyRound,
   Package,
-  Bell
+  Bell,
+  Cloud
 } from 'lucide-react';
 import { AdminUser, StoreInfo } from '../types';
 
@@ -38,6 +39,7 @@ interface HeaderProps {
   newOrdersCount?: number;
   totalOrdersCount?: number;
   totalProductsCount: number;
+  isCloudConnected?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -60,7 +62,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOrdersModal,
   newOrdersCount = 0,
   totalOrdersCount = 0,
-  totalProductsCount
+  totalProductsCount,
+  isCloudConnected = true
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -79,6 +82,12 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
                   Кабінет власника
                 </span>
+                {isCloudConnected && (
+                  <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-[11px] border border-emerald-500/30" title="Хмарна база даних Firebase Firestore активна">
+                    <Cloud className="w-3 h-3 text-emerald-400" />
+                    <span>Хмара онлайн</span>
+                  </span>
+                )}
                 {newOrdersCount > 0 && (
                   <button
                     type="button"
