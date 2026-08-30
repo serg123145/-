@@ -9,10 +9,13 @@ import {
   User, 
   ShoppingBag,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Copy,
+  Check,
+  Info
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { CartItem, OrderDetails } from '../types';
+import { CartItem, OrderDetails, StoreInfo } from '../types';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -20,6 +23,7 @@ interface CheckoutModalProps {
   items: CartItem[];
   subtotal?: number;
   discount?: number;
+  storeInfo?: StoreInfo;
   onOrderPlaced?: (order: OrderDetails) => void;
   onSuccess?: (order: OrderDetails) => void;
 }
@@ -30,6 +34,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   items,
   subtotal: propSubtotal,
   discount: propDiscount = 0,
+  storeInfo,
   onOrderPlaced,
   onSuccess
 }) => {
@@ -38,16 +43,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [city, setCity] = useState('Київ');
   const [deliveryType, setDeliveryType] = useState<'nova_poshta' | 'ukrposhta' | 'pickup'>('nova_poshta');
   const [deliveryAddress, setDeliveryAddress] = useState('Відділення №1');
-  const [paymentType, setPaymentType] = useState<'cash_on_delivery' | 'card_online'>('cash_on_delivery');
+  const [paymentType, setPaymentType] = useState<'cash_on_delivery' | 'card_transfer'>('cash_on_delivery');
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<OrderDetails | null>(null);
+  const [copiedCard, setCopiedCard] = useState(false);
+
+  const cardNumber = storeInfo?.cardNumber || '4149 4999 8888 7777';
+  const cardHolder = storeInfo?.cardHolder || 'Олександр Коваленко';
+  const cardBank = storeInfo?.cardBank || 'ПриватБанк / Monobank';
+  const cardInstructions = storeInfo?.cardPaymentInstructions || 'Після оформлення замовлення ви можете здійснити оплату за вказаними реквізитами.';
+
+  const handleCopyCard = () => {
+    const rawNumber = cardNumber.replace(/\s+/g, '');
+    navigator.clipboard.writeText(rawNumber).then(() => {
+      setCopiedCard(true);
+      setTimeout(() => setCopiedCard(false), 2500);
+    }).catch(() => {
+      // fallback
+    });
+  };
 
   // Reset when modal opens
   useEffect(() => {
     if (isOpen) {
       setCompletedOrder(null);
       setIsSubmitting(false);
+      setCopiedCard(false);
     }
   }, [isOpen]);
 
@@ -151,9 +173,64 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   Дякуємо за покупку, {completedOrder.customerName}!
                 </h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                  Ми надіслали деталі замовлення в SMS на номер <span className="font-semibold text-slate-800">{completedOrder.phone}</span>.
+                  Ми надіслали деталі замовлення в SMS / повідомленні на номер <span className="font-semibold text-slate-800">{completedOrder.phone}</span>.
                 </p>
               </div>
+
+              {/* If Payment to Card was chosen, show prominent Card box */}
+              {completedOrder.paymentType === 'card_transfer' && (
+                <div className="max-w-md mx-auto p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-left space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-amber-700" />
+                      <span>Реквізити для оплати на картку:</span>
+                    </span>
+                    <span className="text-xs font-extrabold text-amber-900">
+                      {completedOrder.totalAmount.toLocaleString('uk-UA')} грн
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] text-slate-500 block">Номер картки ({cardBank}):</span>
+                      <span className="font-mono font-bold text-sm sm:text-base text-slate-900 tracking-wider">
+                        {cardNumber}
+                      </span>
+                      {cardHolder && (
+                        <span className="text-[11px] text-slate-600 block mt-0.5 font-medium">
+                          Отримувач: {cardHolder}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyCard}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                        copiedCard 
+                          ? 'bg-emerald-600 text-white' 
+                          : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xs'
+                      }`}
+                    >
+                      {copiedCard ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Скопійовано!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Скопіювати</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-amber-800 leading-tight">
+                    {cardInstructions}
+                  </p>
+                </div>
+              )}
 
               {/* Order receipt box */}
               <div className="max-w-md mx-auto p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2.5">
@@ -176,7 +253,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="flex justify-between text-slate-600">
                     <span>Оплата:</span>
                     <span className="font-medium text-slate-800">
-                      {completedOrder.paymentType === 'cash_on_delivery' ? 'При отриманні (Накладений платіж)' : 'Онлайн оплата карткою'}
+                      {completedOrder.paymentType === 'cash_on_delivery' 
+                        ? 'При отриманні (Накладений платіж)' 
+                        : 'Оплата на карту (за реквізитами)'}
                     </span>
                   </div>
                 </div>
@@ -200,7 +279,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="pt-3">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-md shadow-emerald-600/20"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-md shadow-emerald-600/20 cursor-pointer"
                 >
                   Продовжити покупки в магазині
                 </button>
@@ -258,7 +337,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeliveryType('nova_poshta')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all ${
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       deliveryType === 'nova_poshta'
                         ? 'border-emerald-600 bg-emerald-50/70 text-emerald-900 shadow-2xs'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700'
@@ -270,7 +349,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeliveryType('ukrposhta')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all ${
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       deliveryType === 'ukrposhta'
                         ? 'border-emerald-600 bg-emerald-50/70 text-emerald-900 shadow-2xs'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700'
@@ -282,7 +361,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDeliveryType('pickup')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all ${
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       deliveryType === 'pickup'
                         ? 'border-emerald-600 bg-emerald-50/70 text-emerald-900 shadow-2xs'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700'
@@ -331,10 +410,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <label className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer text-xs font-medium ${
+                  <label className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer text-xs font-medium transition-all ${
                     paymentType === 'cash_on_delivery' 
-                      ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900' 
-                      : 'border-slate-200 text-slate-700'
+                      ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 shadow-2xs ring-1 ring-emerald-600/30' 
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
                   }`}>
                     <input
                       type="radio"
@@ -343,24 +422,88 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       onChange={() => setPaymentType('cash_on_delivery')}
                       className="text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span>При отриманні (Накладений платіж)</span>
+                    <div>
+                      <span className="font-bold block">При отриманні</span>
+                      <span className="text-[11px] text-slate-500">Накладений платіж у відділенні</span>
+                    </div>
                   </label>
 
-                  <label className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer text-xs font-medium ${
-                    paymentType === 'card_online' 
-                      ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900' 
-                      : 'border-slate-200 text-slate-700'
+                  <label className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer text-xs font-medium transition-all ${
+                    paymentType === 'card_transfer' 
+                      ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 shadow-2xs ring-1 ring-emerald-600/30' 
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
                   }`}>
                     <input
                       type="radio"
                       name="payment"
-                      checked={paymentType === 'card_online'}
-                      onChange={() => setPaymentType('card_online')}
+                      checked={paymentType === 'card_transfer'}
+                      onChange={() => setPaymentType('card_transfer')}
                       className="text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span>Карткою онлайн (Apple Pay / Google Pay)</span>
+                    <div>
+                      <span className="font-bold block">Оплата на карту</span>
+                      <span className="text-[11px] text-slate-500">За реквізитами картки / IBAN</span>
+                    </div>
                   </label>
                 </div>
+
+                {/* Card preview if card_transfer is chosen */}
+                {paymentType === 'card_transfer' && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 animate-in fade-in duration-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4 text-amber-700" />
+                        <span>Реквізити для оплати:</span>
+                      </span>
+                      {cardBank && (
+                        <span className="text-[11px] px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md font-semibold">
+                          {cardBank}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                      <div>
+                        <span className="font-mono font-bold text-sm text-slate-900 tracking-wider block">
+                          {cardNumber}
+                        </span>
+                        {cardHolder && (
+                          <span className="text-[11px] text-slate-600 font-medium block">
+                            {cardHolder}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyCard}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                          copiedCard 
+                            ? 'bg-emerald-600 text-white' 
+                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                        }`}
+                      >
+                        {copiedCard ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Скопійовано!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Скопіювати</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {cardInstructions && (
+                      <p className="text-[11px] text-amber-800/90 leading-tight">
+                        {cardInstructions}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Comment */}
@@ -372,7 +515,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   rows={2}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Бажаний час дзвінка або доставки..."
+                  placeholder="Бажаний час дзвінка або деталі доставки..."
                   className="w-full px-3.5 py-2 text-xs bg-slate-50 focus:bg-white rounded-xl border border-slate-200 focus:border-emerald-500 outline-hidden font-medium"
                 />
               </div>
@@ -405,7 +548,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all disabled:opacity-60"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
               >
                 <span>{isSubmitting ? 'Оформлюємо...' : `Підтвердити замовлення (${totalAmount.toLocaleString('uk-UA')} грн)`}</span>
                 <ArrowRight className="w-4 h-4" />

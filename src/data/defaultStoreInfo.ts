@@ -53,5 +53,10 @@ export const DEFAULT_STORE_INFO: StoreInfo = {
     'Hape & Viga Toys',
     'Edwone & Playtive',
     'Lego Duplo (через адаптери)'
-  ]
+  ],
+  
+  cardNumber: '4149 4999 8888 7777',
+  cardHolder: 'Олександр Коваленко',
+  cardBank: 'ПриватБанк / Monobank',
+  cardPaymentInstructions: 'Після перевірки наявності деталей та підтвердження замовлення менеджер надішле вам точні реквізити в SMS або месенджер.'
 };

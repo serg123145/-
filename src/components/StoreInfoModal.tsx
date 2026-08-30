@@ -21,7 +21,10 @@ import {
   Layers,
   HelpCircle,
   Plus,
-  Trash2
+  Trash2,
+  CreditCard,
+  Copy,
+  Check
 } from 'lucide-react';
 import { StoreInfo, TrustBadgeItem } from '../types';
 import { DEFAULT_STORE_INFO } from '../data/defaultStoreInfo';
@@ -34,7 +37,7 @@ interface StoreInfoModalProps {
   onReset: () => void;
 }
 
-type TabType = 'brand' | 'hero' | 'badges' | 'contacts' | 'footer';
+type TabType = 'brand' | 'hero' | 'badges' | 'payment' | 'contacts' | 'footer';
 
 export const StoreInfoModal: React.FC<StoreInfoModalProps> = ({
   isOpen,
@@ -207,6 +210,19 @@ export const StoreInfoModal: React.FC<StoreInfoModalProps> = ({
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Переваги (4 блоки)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('payment')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'payment' 
+                ? 'bg-amber-500 text-slate-950 shadow-xs' 
+                : 'text-slate-600 hover:bg-slate-200/70'
+            }`}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Реквізити картки</span>
           </button>
 
           <button
@@ -443,6 +459,115 @@ export const StoreInfoModal: React.FC<StoreInfoModalProps> = ({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: PAYMENT CARD REQUISITES */}
+          {activeTab === 'payment' && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 leading-relaxed flex items-start gap-2.5">
+                <CreditCard className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Реквізити банківської картки:</strong> Цей номер картки та інструкція будуть автоматично показуватися покупцям у вікні оформлення замовлення, якщо вони оберуть спосіб <em>"Оплата на карту"</em>.
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Номер картки (або IBAN рахунок) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.cardNumber || ''}
+                      onChange={(e) => handleTextChange('cardNumber', e.target.value)}
+                      placeholder="4149 4999 8888 7777"
+                      required
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs sm:text-sm font-bold text-slate-900 bg-slate-50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-hidden tracking-wider"
+                    />
+                    <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Можна вводити з пробілами або без (наприклад: 4149 4999 8888 7777 або UA123456...)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Отримувач платежу (ПІБ або ФОП)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cardHolder || ''}
+                    onChange={(e) => handleTextChange('cardHolder', e.target.value)}
+                    placeholder="Олександр Коваленко (або ФОП Коваленко О.В.)"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-slate-50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Банк отримувача
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cardBank || ''}
+                    onChange={(e) => handleTextChange('cardBank', e.target.value)}
+                    placeholder="ПриватБанк / Monobank / Raiffeisen"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-slate-50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-hidden"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Інструкція для клієнта
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.cardPaymentInstructions || ''}
+                    onChange={(e) => handleTextChange('cardPaymentInstructions', e.target.value)}
+                    placeholder="Після перевірки деталей менеджер надішле вам точні реквізити в повідомленні..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 bg-slate-50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-hidden resize-none"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Цей текст покупець прочитає під час вибору оплати на карту і в квитанції замовлення.
+                  </p>
+                </div>
+              </div>
+
+              {/* Visual preview for owner */}
+              <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700 space-y-2.5">
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[11px] text-amber-400">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    Попередній перегляд картки для клієнта
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                    {formData.cardBank || 'Банк не вказано'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-700/60 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] text-slate-400">Номер картки для переказу:</div>
+                    <div className="font-mono font-bold text-sm sm:text-base text-amber-400 tracking-wider">
+                      {formData.cardNumber || 'Номер картки не вказано'}
+                    </div>
+                    {formData.cardHolder && (
+                      <div className="text-xs text-slate-300 mt-0.5">
+                        {formData.cardHolder}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {formData.cardPaymentInstructions && (
+                  <p className="text-[11px] text-slate-300 italic bg-white/5 p-2.5 rounded-lg border border-white/10">
+                    "{formData.cardPaymentInstructions}"
+                  </p>
+                )}
               </div>
             </div>
           )}

@@ -82,7 +82,9 @@ export function formatOrderTextForMessenger(order: OrderDetails, storeBrand: str
     order.deliveryType === 'ukrposhta' ? 'Укрпошта' : 'Самовивіз';
     
   const paymentLabel = 
-    order.paymentType === 'cash_on_delivery' ? 'Післяплата (при отриманні)' : 'Оплата картою (онлайн)';
+    order.paymentType === 'cash_on_delivery' 
+      ? 'Післяплата (при отриманні)' 
+      : 'Оплата на карту (за реквізитами)';
 
   const itemsList = order.items
     .map((item, idx) => `${idx + 1}. ${item.product.title} — ${item.quantity} шт. × ${item.product.price} грн = ${item.quantity * item.product.price} грн`)

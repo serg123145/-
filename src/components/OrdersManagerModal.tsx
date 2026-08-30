@@ -165,7 +165,7 @@ export const OrdersManagerModal: React.FC<OrdersManagerModalProps> = ({
       city: 'Київ',
       deliveryType: 'nova_poshta',
       deliveryAddress: 'Відділення №1',
-      paymentType: 'card_online',
+      paymentType: 'card_transfer',
       items: [],
       subtotal: 500,
       discount: 0,
@@ -568,7 +568,7 @@ export const OrdersManagerModal: React.FC<OrdersManagerModalProps> = ({
                             <div className="flex items-center gap-1.5 text-slate-700">
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span>
-                                <strong>Оплата:</strong> {order.paymentType === 'cash_on_delivery' ? 'Післяплата (при отриманні)' : 'Оплата картою (онлайн)'}
+                                <strong>Оплата:</strong> {order.paymentType === 'cash_on_delivery' ? 'Післяплата (при отриманні)' : 'Оплата на карту'}
                               </span>
                             </div>
 

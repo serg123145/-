@@ -52,7 +52,7 @@ export interface OrderDetails {
   city: string;
   deliveryType: 'nova_poshta' | 'ukrposhta' | 'pickup';
   deliveryAddress: string;
-  paymentType: 'cash_on_delivery' | 'card_online';
+  paymentType: 'cash_on_delivery' | 'card_transfer' | 'card_online';
   comment?: string;
   items: CartItem[];
   subtotal: number;
@@ -114,6 +114,10 @@ export interface StoreInfo {
   instagram?: string;
   footerDescription: string;
   compatibilityList: string[];
+  cardNumber?: string;
+  cardHolder?: string;
+  cardBank?: string;
+  cardPaymentInstructions?: string;
 }
 
 export interface AdminUser {

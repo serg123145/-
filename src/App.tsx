@@ -1143,6 +1143,7 @@ export default function App() {
         items={cart}
         subtotal={totalCartSubtotal}
         discount={0}
+        storeInfo={storeInfo}
         onOrderPlaced={handleCheckoutSuccess}
         onSuccess={handleCheckoutSuccess}
       />
