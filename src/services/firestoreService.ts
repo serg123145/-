@@ -264,3 +264,37 @@ export async function saveNotificationSettingsToFirestore(settings: Notification
   const docRef = doc(db, 'store_info', 'notifications');
   await setDoc(docRef, cleanForFirestore(settings), { merge: true });
 }
+
+// ----------------------
+// ADMIN PIN & SECURITY
+// ----------------------
+
+export function subscribeToAdminPin(
+  onData: (pin: string) => void,
+  onError?: (err: Error) => void
+) {
+  if (!isFirebaseConfigured) return () => {};
+
+  const docRef = doc(db, 'store_info', 'security');
+  return onSnapshot(
+    docRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && typeof data.adminPin === 'string' && data.adminPin.trim().length >= 4) {
+          onData(data.adminPin.trim());
+        }
+      }
+    },
+    (error) => {
+      console.error('[Firestore] Error subscribing to admin PIN:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export async function saveAdminPinToFirestore(pin: string): Promise<void> {
+  if (!isFirebaseConfigured) return;
+  const docRef = doc(db, 'store_info', 'security');
+  await setDoc(docRef, cleanForFirestore({ adminPin: pin.trim(), updatedAt: new Date().toISOString() }), { merge: true });
+}

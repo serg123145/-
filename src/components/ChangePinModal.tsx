@@ -6,7 +6,8 @@ import {
   CheckCircle2, 
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from 'lucide-react';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/storage';
 
@@ -14,21 +15,26 @@ interface ChangePinModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (message: string) => void;
+  currentStoredPin?: string;
+  onSavePin?: (newPin: string) => Promise<void> | void;
 }
 
 export const ChangePinModal: React.FC<ChangePinModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  currentStoredPin,
+  onSavePin
 }) => {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPins, setShowPins] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const getStoredPin = () => {
-    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
+    return currentStoredPin || safeLocalStorageGet<string>('trk_admin_pin', '7777');
   };
 
   useEffect(() => {
@@ -38,16 +44,17 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
       setConfirmPin('');
       setErrorMsg('');
       setShowPins(false);
+      setIsSaving(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const storedPin = getStoredPin();
 
-    if (currentPin !== storedPin) {
+    if (currentPin.trim() !== storedPin.trim()) {
       setErrorMsg('Поточний PIN-код введено невірно');
       return;
     }
@@ -57,19 +64,31 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
       return;
     }
 
-    if (newPin !== confirmPin) {
+    if (newPin.trim() !== confirmPin.trim()) {
       setErrorMsg('Новий PIN-код та підтвердження не збігаються');
       return;
     }
 
-    if (newPin === currentPin) {
+    if (newPin.trim() === currentPin.trim()) {
       setErrorMsg('Новий PIN-код повинен відрізнятися від поточного');
       return;
     }
 
-    safeLocalStorageSet('trk_admin_pin', newPin.trim());
-    onSuccess('PIN-код доступу успішно оновлено!');
-    onClose();
+    setIsSaving(true);
+    try {
+      const cleanPin = newPin.trim();
+      safeLocalStorageSet('trk_admin_pin', cleanPin);
+      if (onSavePin) {
+        await onSavePin(cleanPin);
+      }
+      onSuccess('PIN-код доступу успішно оновлено та синхронізовано!');
+      onClose();
+    } catch (err) {
+      console.error('Failed to save PIN:', err);
+      setErrorMsg('Помилка при збереженні PIN-коду. Спробуйте ще раз.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -193,16 +212,27 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-1/2 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+              disabled={isSaving}
+              className="w-1/2 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
             >
               Скасувати
             </button>
             <button
               type="submit"
-              className="w-1/2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
+              disabled={isSaving}
+              className="w-1/2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer disabled:opacity-50"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Зберегти PIN</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Збереження...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Зберегти PIN</span>
+                </>
+              )}
             </button>
           </div>
 

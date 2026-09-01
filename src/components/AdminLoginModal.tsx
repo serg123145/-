@@ -13,18 +13,20 @@ interface AdminLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (user: AdminUser) => void;
+  currentPin?: string;
 }
 
 export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   isOpen,
   onClose,
-  onLogin
+  onLogin,
+  currentPin
 }) => {
   const [pinCode, setPinCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const getStoredPin = () => {
-    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
+    return currentPin || safeLocalStorageGet<string>('trk_admin_pin', '7777');
   };
 
   useEffect(() => {
@@ -38,9 +40,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const handlePinLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPin = getStoredPin();
+    const correctPin = getStoredPin().trim();
 
-    if (pinCode === correctPin) {
+    if (pinCode.trim() === correctPin) {
       const user: AdminUser = {
         email: 'owner@track-workshop.ua',
         name: 'Власник Майстерні',

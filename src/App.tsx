@@ -34,6 +34,8 @@ import {
   subscribeToOrders, 
   subscribeToStoreInfo, 
   subscribeToNotificationSettings,
+  subscribeToAdminPin,
+  saveAdminPinToFirestore,
   saveProductToFirestore,
   deleteProductFromFirestore,
   saveOrderToFirestore,
@@ -174,12 +176,24 @@ export default function App() {
       () => setIsCloudConnected(false)
     );
 
+    // 5. Live Admin PIN listener
+    const unsubPin = subscribeToAdminPin(
+      (livePin) => {
+        if (isMounted && livePin && livePin.length >= 4) {
+          setAdminPin(livePin);
+          safeLocalStorageSet('trk_admin_pin', livePin);
+        }
+      },
+      () => setIsCloudConnected(false)
+    );
+
     return () => {
       isMounted = false;
       unsubProducts();
       unsubOrders();
       unsubStoreInfo();
       unsubSettings();
+      unsubPin();
     };
   }, []);
 
@@ -187,6 +201,22 @@ export default function App() {
   useEffect(() => {
     safeLocalStorageSet('trk_store_info', storeInfo);
   }, [storeInfo]);
+
+  // Admin PIN state (persisted locally and synced with Cloud Firestore)
+  const [adminPin, setAdminPin] = useState<string>(() => {
+    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
+  });
+
+  const handleSaveAdminPin = async (newPin: string) => {
+    const cleanPin = newPin.trim();
+    setAdminPin(cleanPin);
+    safeLocalStorageSet('trk_admin_pin', cleanPin);
+    try {
+      await saveAdminPinToFirestore(cleanPin);
+    } catch (e) {
+      console.error('Failed to sync PIN to Firestore:', e);
+    }
+  };
 
   // Products state with local storage persistence
   const [products, setProducts] = useState<Product[]>(() => {
@@ -1139,6 +1169,7 @@ export default function App() {
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
         onLogin={handleAdminLogin}
+        currentPin={adminPin}
       />
 
       {/* Change Admin PIN Modal */}
@@ -1146,6 +1177,8 @@ export default function App() {
         isOpen={isChangePinOpen}
         onClose={() => setIsChangePinOpen(false)}
         onSuccess={(msg) => showToast(msg, 'success')}
+        currentStoredPin={adminPin}
+        onSavePin={handleSaveAdminPin}
       />
 
       {/* Store Info Edit Modal */}
