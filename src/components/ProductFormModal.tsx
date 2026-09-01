@@ -75,6 +75,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [imageTab, setImageTab] = useState<'upload' | 'url'>('upload');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const allCategories = Array.from(new Set([...PRESET_CATEGORIES, ...existingCategories]));
 
@@ -121,8 +122,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }, [initialProduct, isOpen]);
 
   if (!isOpen) return null;
-
-  const [isCompressing, setIsCompressing] = useState(false);
 
   const handleImageFileChange = async (file: File) => {
     if (!file.type.startsWith('image/')) {
