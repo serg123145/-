@@ -7,6 +7,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { AdminUser } from '../types';
+import { safeLocalStorageGet } from '../utils/storage';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
 
   const getStoredPin = () => {
-    return localStorage.getItem('trk_admin_pin') || '7777';
+    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
   };
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/storage';
 
 interface ChangePinModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
   const [showPins, setShowPins] = useState(false);
 
   const getStoredPin = () => {
-    return localStorage.getItem('trk_admin_pin') || '7777';
+    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
   };
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
       return;
     }
 
-    localStorage.setItem('trk_admin_pin', newPin.trim());
+    safeLocalStorageSet('trk_admin_pin', newPin.trim());
     onSuccess('PIN-код доступу успішно оновлено!');
     onClose();
   };

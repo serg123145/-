@@ -12,9 +12,11 @@ import {
   Package, 
   Tag, 
   Info,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Loader2
 } from 'lucide-react';
 import { Product } from '../types';
+import { compressImage } from '../utils/imageCompressor';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -120,23 +122,40 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleImageFileChange = (file: File) => {
+  const [isCompressing, setIsCompressing] = useState(false);
+
+  const handleImageFileChange = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setErrors(prev => ({ ...prev, image: 'Будь ласка, оберіть файл зображення (JPG, PNG, WEBP)' }));
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setImageUrl(result);
-      setErrors(prev => {
-        const next = { ...prev };
-        delete next.image;
-        return next;
-      });
-    };
-    reader.readAsDataURL(file);
+    setIsCompressing(true);
+    try {
+      // Automatically resize and compress image to web-friendly lightweight size
+      const compressedDataUrl = await compressImage(file, 1200, 1200, 0.82);
+      if (compressedDataUrl) {
+        setImageUrl(compressedDataUrl);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.image;
+          return next;
+        });
+      } else {
+        setErrors(prev => ({ ...prev, image: 'Не вдалося прочитати зображення. Спробуйте інший файл.' }));
+      }
+    } catch (err) {
+      console.error('Error compressing image:', err);
+      // Fallback to basic file reader
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setImageUrl(result);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -472,22 +491,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                       onDragLeave={() => setIsDragOver(false)}
                       onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
-                        isDragOver 
-                          ? 'border-amber-500 bg-amber-50/50' 
-                          : 'border-slate-300 hover:border-amber-400 bg-slate-50/50 hover:bg-amber-50/20'
+                      onClick={() => !isCompressing && fileInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
+                        isCompressing
+                          ? 'border-amber-400 bg-amber-50/70 cursor-wait'
+                          : isDragOver 
+                          ? 'border-amber-500 bg-amber-50/50 cursor-pointer' 
+                          : 'border-slate-300 hover:border-amber-400 bg-slate-50/50 hover:bg-amber-50/20 cursor-pointer'
                       }`}
                     >
-                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 mx-auto mb-2 flex items-center justify-center">
-                        <Upload className="w-5 h-5" />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        Натисніть або перетягніть фото сюди
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        PNG, JPG, WEBP, GIF з вашого комп'ютера чи телефона
-                      </p>
+                      {isCompressing ? (
+                        <div className="py-2">
+                          <Loader2 className="w-8 h-8 text-amber-600 animate-spin mx-auto mb-2" />
+                          <p className="text-sm font-bold text-amber-900">
+                            Оптимізуємо та стискаємо фото...
+                          </p>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Зменшуємо розмір файлу без втрати якості
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 mx-auto mb-2 flex items-center justify-center">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            Натисніть або перетягніть фото сюди
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            PNG, JPG, WEBP, GIF з вашого пристрою (автоматично стискається)
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 ) : (

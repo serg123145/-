@@ -28,6 +28,7 @@ import { Product, CartItem, SortOption, OrderDetails, AdminUser, StoreInfo, Trus
 import { DEFAULT_PRODUCTS } from './data/defaultCatalog';
 import { DEFAULT_STORE_INFO } from './data/defaultStoreInfo';
 import { DEFAULT_NOTIFICATION_SETTINGS, dispatchNewOrderNotifications } from './utils/notificationService';
+import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from './utils/storage';
 import { 
   subscribeToProducts, 
   subscribeToOrders, 
@@ -108,14 +109,9 @@ const INITIAL_DEMO_ORDERS: OrderDetails[] = [
 export default function App() {
   // Store info state (Name, Description, Contacts, Badges, etc.)
   const [storeInfo, setStoreInfo] = useState<StoreInfo>(() => {
-    const saved = localStorage.getItem('trk_store_info');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { ...DEFAULT_STORE_INFO, ...parsed };
-      } catch (e) {
-        console.error('Failed to parse saved store info', e);
-      }
+    const saved = safeLocalStorageGet<Partial<StoreInfo> | null>('trk_store_info', null);
+    if (saved && typeof saved === 'object') {
+      return { ...DEFAULT_STORE_INFO, ...saved };
     }
     return DEFAULT_STORE_INFO;
   });
@@ -138,7 +134,7 @@ export default function App() {
       (liveProducts) => {
         if (isMounted && liveProducts.length > 0) {
           setProducts(liveProducts);
-          localStorage.setItem('trk_products_catalog', JSON.stringify(liveProducts));
+          safeLocalStorageSet('trk_products_catalog', liveProducts);
           setIsCloudConnected(true);
         }
       },
@@ -150,7 +146,7 @@ export default function App() {
       (liveOrders) => {
         if (isMounted && liveOrders) {
           setOrders(liveOrders);
-          localStorage.setItem('trk_orders_history', JSON.stringify(liveOrders));
+          safeLocalStorageSet('trk_orders_history', liveOrders);
         }
       },
       () => setIsCloudConnected(false)
@@ -161,7 +157,7 @@ export default function App() {
       (liveInfo) => {
         if (isMounted && liveInfo && liveInfo.brandName) {
           setStoreInfo(liveInfo);
-          localStorage.setItem('trk_store_info', JSON.stringify(liveInfo));
+          safeLocalStorageSet('trk_store_info', liveInfo);
         }
       },
       () => setIsCloudConnected(false)
@@ -172,7 +168,7 @@ export default function App() {
       (liveSettings) => {
         if (isMounted && liveSettings) {
           setNotificationSettings(liveSettings);
-          localStorage.setItem('trk_notification_settings', JSON.stringify(liveSettings));
+          safeLocalStorageSet('trk_notification_settings', liveSettings);
         }
       },
       () => setIsCloudConnected(false)
@@ -189,71 +185,48 @@ export default function App() {
 
   // Save store info when updated
   useEffect(() => {
-    localStorage.setItem('trk_store_info', JSON.stringify(storeInfo));
+    safeLocalStorageSet('trk_store_info', storeInfo);
   }, [storeInfo]);
 
   // Products state with local storage persistence
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('trk_products_catalog');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch (e) {
-        console.error('Failed to parse saved catalog', e);
-      }
+    const saved = safeLocalStorageGet<Product[] | null>('trk_products_catalog', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      return saved;
     }
     return DEFAULT_PRODUCTS;
   });
 
   // Save products whenever updated
   useEffect(() => {
-    localStorage.setItem('trk_products_catalog', JSON.stringify(products));
+    safeLocalStorageSet('trk_products_catalog', products);
   }, [products]);
 
   // Shopping Cart state
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('trk_cart_items');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
+    return safeLocalStorageGet<CartItem[]>('trk_cart_items', []);
   });
 
   useEffect(() => {
-    localStorage.setItem('trk_cart_items', JSON.stringify(cart));
+    safeLocalStorageSet('trk_cart_items', cart);
   }, [cart]);
 
   // Admin User Auth state
   const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
-    const saved = localStorage.getItem('trk_admin_session');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+    return safeLocalStorageGet<AdminUser | null>('trk_admin_session', null);
   });
 
   const isAdmin = !!adminUser;
 
   const handleAdminLogin = (user: AdminUser) => {
     setAdminUser(user);
-    localStorage.setItem('trk_admin_session', JSON.stringify(user));
+    safeLocalStorageSet('trk_admin_session', user);
     showToast(`Вітаємо, ${user.name}! Режим власника активовано.`, 'success');
   };
 
   const handleAdminLogout = () => {
     setAdminUser(null);
-    localStorage.removeItem('trk_admin_session');
+    safeLocalStorageRemove('trk_admin_session');
     showToast('Ви вийшли з режиму власника', 'info');
   };
 
@@ -268,36 +241,27 @@ export default function App() {
   
   // Orders & Notifications state
   const [orders, setOrders] = useState<OrderDetails[]>(() => {
-    const saved = localStorage.getItem('trk_orders_history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        console.error('Failed to parse saved orders', e);
-      }
+    const saved = safeLocalStorageGet<OrderDetails[] | null>('trk_orders_history', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      return saved;
     }
     return INITIAL_DEMO_ORDERS;
   });
 
   useEffect(() => {
-    localStorage.setItem('trk_orders_history', JSON.stringify(orders));
+    safeLocalStorageSet('trk_orders_history', orders);
   }, [orders]);
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
-    const saved = localStorage.getItem('trk_notification_settings');
-    if (saved) {
-      try {
-        return { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(saved) };
-      } catch (e) {
-        console.error('Failed to parse notification settings', e);
-      }
+    const saved = safeLocalStorageGet<Partial<NotificationSettings> | null>('trk_notification_settings', null);
+    if (saved && typeof saved === 'object') {
+      return { ...DEFAULT_NOTIFICATION_SETTINGS, ...saved };
     }
     return DEFAULT_NOTIFICATION_SETTINGS;
   });
 
   useEffect(() => {
-    localStorage.setItem('trk_notification_settings', JSON.stringify(notificationSettings));
+    safeLocalStorageSet('trk_notification_settings', notificationSettings);
   }, [notificationSettings]);
 
   // Order count metrics
@@ -380,14 +344,14 @@ export default function App() {
   // Store Info Handlers
   const handleSaveStoreInfo = (newInfo: StoreInfo) => {
     setStoreInfo(newInfo);
-    localStorage.setItem('trk_store_info', JSON.stringify(newInfo));
+    safeLocalStorageSet('trk_store_info', newInfo);
     saveStoreInfoToFirestore(newInfo).catch(console.error);
     showToast('Інформаційні блоки магазину успішно оновлено!', 'success');
   };
 
   const handleResetStoreInfo = () => {
     setStoreInfo(DEFAULT_STORE_INFO);
-    localStorage.removeItem('trk_store_info');
+    safeLocalStorageRemove('trk_store_info');
     saveStoreInfoToFirestore(DEFAULT_STORE_INFO).catch(console.error);
     showToast('Інформаційні блоки повернуто до стандартних', 'info');
   };
