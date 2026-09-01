@@ -34,18 +34,15 @@ export function safeLocalStorageSet(key: string, value: any): boolean {
       error?.code === 22 || 
       error?.code === 1014;
 
-    console.warn(`[SafeStorage] Warning: Failed to save "${key}" to localStorage:`, error?.message || error);
-
     if (isQuotaError) {
-      // Special compaction logic for product catalog
+      // Special compaction logic for product catalog: strip bulky base64 data URLs for local caching
       if (key === 'trk_products_catalog' && Array.isArray(value)) {
         try {
           const lightweight = createLightweightProducts(value);
           localStorage.setItem(key, JSON.stringify(lightweight));
-          console.log('[SafeStorage] Successfully saved lightweight products catalog to localStorage.');
           return true;
         } catch (secondaryError) {
-          console.warn('[SafeStorage] Even lightweight catalog exceeded quota. Skipping local cache update.');
+          // Ignore - memory/Firestore state will keep the full catalog
         }
       }
 
