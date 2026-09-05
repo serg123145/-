@@ -63,6 +63,7 @@ import { StoreInfoModal } from './components/StoreInfoModal';
 import { OrdersManagerModal } from './components/OrdersManagerModal';
 import { CatalogControls } from './components/CatalogControls';
 import { NotificationToast } from './components/NotificationToast';
+import { groupSimilarProductsAdjacent, findSimilarProducts } from './utils/similarity';
 
 const INITIAL_DEMO_ORDERS: OrderDetails[] = [
   {
@@ -417,6 +418,7 @@ export default function App() {
   const [sortOption, setSortOption] = useState<SortOption>('popular');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyDiscounted, setOnlyDiscounted] = useState(false);
+  const [groupBySimilar, setGroupBySimilar] = useState(true);
 
   // Extract unique categories from actual products
   const categories = useMemo(() => {
@@ -424,55 +426,76 @@ export default function App() {
     return cats.sort();
   }, [products]);
 
-  // Filtered and Sorted Products
+  // Pre-calculate similar products map for each product across catalog
+  const similarProductsMap = useMemo(() => {
+    const map = new Map<string, Product[]>();
+    for (const p of products) {
+      const similars = findSimilarProducts(p, products, 8).map(s => s.product);
+      map.set(p.id, similars);
+    }
+    return map;
+  }, [products]);
+
+  // Filtered and Sorted Products (with adjacent grouping for very similar items)
   const filteredProducts = useMemo(() => {
-    return products
-      .filter((p) => {
-        // Search filter
-        if (searchTerm) {
-          const term = searchTerm.toLowerCase();
-          const matchesTitle = p.title.toLowerCase().includes(term);
-          const matchesSku = p.sku?.toLowerCase().includes(term);
-          const matchesCategory = p.category.toLowerCase().includes(term);
-          const matchesDesc = p.description?.toLowerCase().includes(term);
-          if (!matchesTitle && !matchesSku && !matchesCategory && !matchesDesc) {
-            return false;
-          }
-        }
-
-        // Category filter
-        if (selectedCategory !== 'all' && p.category !== selectedCategory) {
+    const rawFiltered = products.filter((p) => {
+      // Search filter
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchesTitle = p.title.toLowerCase().includes(term);
+        const matchesSku = p.sku?.toLowerCase().includes(term);
+        const matchesCategory = p.category.toLowerCase().includes(term);
+        const matchesDesc = p.description?.toLowerCase().includes(term);
+        if (!matchesTitle && !matchesSku && !matchesCategory && !matchesDesc) {
           return false;
         }
+      }
 
-        // In-stock filter
-        if (onlyInStock && p.stock <= 0) {
-          return false;
-        }
+      // Category filter
+      if (selectedCategory !== 'all' && p.category !== selectedCategory) {
+        return false;
+      }
 
-        // Discounted filter
-        if (onlyDiscounted && (!p.oldPrice || p.oldPrice <= p.price)) {
-          return false;
-        }
+      // In-stock filter
+      if (onlyInStock && p.stock <= 0) {
+        return false;
+      }
 
-        return true;
-      })
-      .sort((a, b) => {
-        switch (sortOption) {
-          case 'price-asc':
-            return a.price - b.price;
-          case 'price-desc':
-            return b.price - a.price;
-          case 'name-asc':
-            return a.title.localeCompare(b.title, 'uk');
-          case 'rating':
-            return (b.rating || 0) - (a.rating || 0);
-          case 'popular':
-          default:
-            return (b.reviewsCount || 0) - (a.reviewsCount || 0);
-        }
-      });
-  }, [products, searchTerm, selectedCategory, sortOption, onlyInStock, onlyDiscounted]);
+      // Discounted filter
+      if (onlyDiscounted && (!p.oldPrice || p.oldPrice <= p.price)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const getComparator = (option: SortOption): ((a: Product, b: Product) => number) => {
+      switch (option) {
+        case 'price-asc':
+          return (a, b) => a.price - b.price;
+        case 'price-desc':
+          return (a, b) => b.price - a.price;
+        case 'rating':
+          return (a, b) => (b.rating || 0) - (a.rating || 0);
+        case 'name-asc':
+          return (a, b) => a.title.localeCompare(b.title, 'uk');
+        case 'similar':
+          return (a, b) => a.title.localeCompare(b.title, 'uk');
+        case 'popular':
+        default:
+          return (a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0);
+      }
+    };
+
+    const comparator = getComparator(sortOption);
+
+    // Group similar items adjacent if groupBySimilar is ON or sortOption is 'similar' or 'popular'
+    if (groupBySimilar || sortOption === 'similar') {
+      return groupSimilarProductsAdjacent(rawFiltered, comparator);
+    }
+
+    return [...rawFiltered].sort(comparator);
+  }, [products, searchTerm, selectedCategory, sortOption, onlyInStock, onlyDiscounted, groupBySimilar]);
 
   // Cart operations
   const handleAddToCart = (product: Product, quantity = 1) => {
@@ -852,6 +875,8 @@ export default function App() {
             onToggleInStock={() => setOnlyInStock(!onlyInStock)}
             onlyDiscounted={onlyDiscounted}
             onToggleDiscounted={() => setOnlyDiscounted(!onlyDiscounted)}
+            groupBySimilar={groupBySimilar}
+            onToggleGroupBySimilar={() => setGroupBySimilar(!groupBySimilar)}
             totalCount={filteredProducts.length}
           />
 
@@ -866,6 +891,7 @@ export default function App() {
                     key={product.id}
                     product={product}
                     cartQuantity={currentQty}
+                    similarCount={similarProductsMap.get(product.id)?.length || 0}
                     onAddToCart={handleAddToCart}
                     onUpdateCartQuantity={handleUpdateCartQuantity}
                     onOpenDetails={setSelectedProduct}
@@ -1152,6 +1178,8 @@ export default function App() {
         isInCart={selectedProduct ? cart.some(item => item.product.id === selectedProduct.id) : false}
         isAdmin={isAdmin}
         onEditProduct={handleOpenEditProduct}
+        similarProducts={selectedProduct ? (similarProductsMap.get(selectedProduct.id) || []) : []}
+        onSelectProduct={setSelectedProduct}
       />
 
       {/* Product Form Modal (Manual Add / Edit with photo upload) */}

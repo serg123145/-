@@ -81,10 +81,11 @@ export interface NotificationSettings {
 
 export type SortOption = 
   | 'popular'
-  | 'price_asc'
-  | 'price_desc'
-  | 'discount'
-  | 'name_asc';
+  | 'similar'
+  | 'price-asc'
+  | 'price-desc'
+  | 'rating'
+  | 'name-asc';
 
 export interface TrustBadgeItem {
   id: string;

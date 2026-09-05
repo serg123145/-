@@ -8,7 +8,8 @@ import {
   Minus, 
   Plus, 
   Edit3,
-  Check
+  Check,
+  Layers
 } from 'lucide-react';
 import { Product } from '../types';
 
@@ -21,6 +22,8 @@ interface ProductDetailsModalProps {
   isInCart: boolean;
   isAdmin?: boolean;
   onEditProduct?: (product: Product) => void;
+  similarProducts?: Product[];
+  onSelectProduct?: (product: Product) => void;
 }
 
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
@@ -31,7 +34,9 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   cartQuantity = 0,
   isInCart,
   isAdmin = false,
-  onEditProduct
+  onEditProduct,
+  similarProducts = [],
+  onSelectProduct
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState('Базовий (Сірий)');
@@ -223,6 +228,56 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Similar Models & Sibling Variants */}
+                {similarProducts && similarProducts.length > 0 && (
+                  <div className="mt-5 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Схожі моделі та комплектації ({similarProducts.length})</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">Схожі за назвою</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {similarProducts.map((sim) => (
+                        <div
+                          key={sim.id}
+                          onClick={() => onSelectProduct?.(sim)}
+                          className="flex items-center gap-2.5 p-2 rounded-xl border border-slate-200/90 hover:border-amber-400 hover:bg-amber-50/40 transition-all cursor-pointer group bg-slate-50/60"
+                        >
+                          <img
+                            src={sim.imageUrl}
+                            alt={sim.title}
+                            className="w-11 h-11 rounded-lg object-cover object-center bg-slate-100 shrink-0 border border-slate-200/60"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
+                            }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-semibold text-slate-900 truncate group-hover:text-amber-700">
+                              {sim.title}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-bold text-slate-800">
+                                {sim.price.toLocaleString('uk-UA')} грн
+                              </span>
+                              {sim.oldPrice && sim.oldPrice > sim.price && (
+                                <span className="text-[10px] text-slate-400 line-through">
+                                  {sim.oldPrice}
+                                </span>
+                              )}
+                              <span className={`text-[10px] ml-auto font-medium ${sim.stock > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {sim.stock > 0 ? 'Є в наявності' : 'Під замовлення'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               </div>
 
