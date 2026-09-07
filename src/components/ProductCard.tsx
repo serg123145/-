@@ -7,16 +7,17 @@ import {
   Edit3, 
   Trash2, 
   Copy, 
-  Layers,
   Minus,
-  Plus
+  Plus,
+  Layers
 } from 'lucide-react';
 import { Product } from '../types';
+import { extractTrailingParenthesizedNumber } from '../utils/productOrdering';
 
 interface ProductCardProps {
   product: Product;
   cartQuantity?: number;
-  similarCount?: number;
+  siblingCount?: number;
   onAddToCart: (product: Product, quantity?: number) => void;
   onUpdateCartQuantity?: (productId: string, delta: number) => void;
   onOpenDetails: (product: Product) => void;
@@ -30,7 +31,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   cartQuantity = 0,
-  similarCount = 0,
+  siblingCount = 0,
   onAddToCart,
   onUpdateCartQuantity,
   onOpenDetails,
@@ -40,6 +41,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isInCart = false,
   isAdmin = false
 }) => {
+  const parenthesizedNum = extractTrailingParenthesizedNumber(product.title);
   const discountPercent = product.oldPrice && product.oldPrice > product.price
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
     : null;
@@ -124,23 +126,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Card Content */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
         <div>
-          {/* Category & SKU & Similar count badge */}
+          {/* Category & SKU & Number in parentheses */}
           <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5 flex-wrap gap-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
                 {product.category}
               </span>
-              {similarCount > 0 && (
+              {parenthesizedNum !== null && (
+                <span 
+                  className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded-md shadow-2xs border border-amber-300/60" 
+                  title={`Номер у дужках: (${parenthesizedNum})`}
+                >
+                  №{parenthesizedNum}
+                </span>
+              )}
+              {siblingCount > 0 && (
                 <span 
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenDetails(product);
                   }}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-900 bg-amber-100/90 hover:bg-amber-200 px-2 py-0.5 rounded-md cursor-pointer transition-colors shadow-2xs" 
-                  title={`Поруч є ще ${similarCount} схожих варіантів/моделей`}
+                  className="inline-flex items-center text-[10px] font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded-md cursor-pointer transition-colors" 
+                  title={`Є ще ${siblingCount} варіантів цієї моделі`}
                 >
-                  <Layers className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                  <span>+{similarCount} схожі</span>
+                  +{siblingCount} вар.
                 </span>
               )}
             </div>

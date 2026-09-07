@@ -9,9 +9,10 @@ import {
   Plus, 
   Edit3,
   Check,
-  Layers
+  ListOrdered
 } from 'lucide-react';
 import { Product } from '../types';
+import { extractTrailingParenthesizedNumber } from '../utils/productOrdering';
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -22,7 +23,7 @@ interface ProductDetailsModalProps {
   isInCart: boolean;
   isAdmin?: boolean;
   onEditProduct?: (product: Product) => void;
-  similarProducts?: Product[];
+  siblingVariants?: Product[];
   onSelectProduct?: (product: Product) => void;
 }
 
@@ -35,11 +36,10 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   isInCart,
   isAdmin = false,
   onEditProduct,
-  similarProducts = [],
+  siblingVariants = [],
   onSelectProduct
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [selectedColor, setSelectedColor] = useState('Базовий (Сірий)');
 
   useEffect(() => {
     if (product) {
@@ -206,75 +206,62 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                   </div>
                 )}
 
-                {/* Optional Color Variations */}
-                <div className="mt-5 pt-4 border-t border-slate-100">
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    Колір друку: <span className="text-amber-700 font-normal">{selectedColor}</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Базовий (Сірий)', 'Деревний беж', 'Червоний', 'Синій', 'Яскравий мікс'].map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setSelectedColor(color)}
-                        className={`text-xs px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
-                          selectedColor === color 
-                            ? 'border-amber-500 bg-amber-50 text-amber-950 font-bold' 
-                            : 'border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Similar Models & Sibling Variants */}
-                {similarProducts && similarProducts.length > 0 && (
+                {/* Sibling Variants & Numbered Options */}
+                {siblingVariants && siblingVariants.length > 0 && (
                   <div className="mt-5 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between mb-2.5">
                       <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Схожі моделі та комплектації ({similarProducts.length})</span>
+                        <ListOrdered className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Варіанти комплектації ({siblingVariants.length})</span>
                       </label>
-                      <span className="text-[10px] text-slate-400">Схожі за назвою</span>
+                      <span className="text-[10px] text-slate-400">За номерами (1, 2, 3...)</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {similarProducts.map((sim) => (
-                        <div
-                          key={sim.id}
-                          onClick={() => onSelectProduct?.(sim)}
-                          className="flex items-center gap-2.5 p-2 rounded-xl border border-slate-200/90 hover:border-amber-400 hover:bg-amber-50/40 transition-all cursor-pointer group bg-slate-50/60"
-                        >
-                          <img
-                            src={sim.imageUrl}
-                            alt={sim.title}
-                            className="w-11 h-11 rounded-lg object-cover object-center bg-slate-100 shrink-0 border border-slate-200/60"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-xs font-semibold text-slate-900 truncate group-hover:text-amber-700">
-                              {sim.title}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs font-bold text-slate-800">
-                                {sim.price.toLocaleString('uk-UA')} грн
-                              </span>
-                              {sim.oldPrice && sim.oldPrice > sim.price && (
-                                <span className="text-[10px] text-slate-400 line-through">
-                                  {sim.oldPrice}
+                      {siblingVariants.map((item) => {
+                        const num = extractTrailingParenthesizedNumber(item.title);
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => onSelectProduct?.(item)}
+                            className="flex items-center gap-2.5 p-2 rounded-xl border border-slate-200/90 hover:border-amber-400 hover:bg-amber-50/40 transition-all cursor-pointer group bg-slate-50/60"
+                          >
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title}
+                              className="w-11 h-11 rounded-lg object-cover object-center bg-slate-100 shrink-0 border border-slate-200/60"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-xs font-semibold text-slate-900 truncate group-hover:text-amber-700">
+                                  {item.title}
+                                </h4>
+                                {num !== null && (
+                                  <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-900 px-1 rounded-sm shrink-0 border border-amber-300/60">
+                                    №{num}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs font-bold text-slate-800">
+                                  {item.price.toLocaleString('uk-UA')} грн
                                 </span>
-                              )}
-                              <span className={`text-[10px] ml-auto font-medium ${sim.stock > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {sim.stock > 0 ? 'Є в наявності' : 'Під замовлення'}
-                              </span>
+                                {item.oldPrice && item.oldPrice > item.price && (
+                                  <span className="text-[10px] text-slate-400 line-through">
+                                    {item.oldPrice}
+                                  </span>
+                                )}
+                                <span className={`text-[10px] ml-auto font-medium ${item.stock > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                  {item.stock > 0 ? 'В наявності' : 'Під замовлення'}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

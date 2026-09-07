@@ -63,7 +63,7 @@ import { StoreInfoModal } from './components/StoreInfoModal';
 import { OrdersManagerModal } from './components/OrdersManagerModal';
 import { CatalogControls } from './components/CatalogControls';
 import { NotificationToast } from './components/NotificationToast';
-import { groupSimilarProductsAdjacent, findSimilarProducts } from './utils/similarity';
+import { compareProductsByTrailingParenthesizedNumber, findSiblingNumberedProducts } from './utils/productOrdering';
 
 const INITIAL_DEMO_ORDERS: OrderDetails[] = [
   {
@@ -415,10 +415,10 @@ export default function App() {
   // Filter & Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortOption, setSortOption] = useState<SortOption>('popular');
+  const [sortOption, setSortOption] = useState<SortOption>('number-in-parentheses');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [onlyDiscounted, setOnlyDiscounted] = useState(false);
-  const [groupBySimilar, setGroupBySimilar] = useState(true);
+  const [sortByParenthesesNumber, setSortByParenthesesNumber] = useState(true);
 
   // Extract unique categories from actual products
   const categories = useMemo(() => {
@@ -426,17 +426,17 @@ export default function App() {
     return cats.sort();
   }, [products]);
 
-  // Pre-calculate similar products map for each product across catalog
-  const similarProductsMap = useMemo(() => {
+  // Pre-calculate sibling variants map for each product across catalog
+  const siblingProductsMap = useMemo(() => {
     const map = new Map<string, Product[]>();
     for (const p of products) {
-      const similars = findSimilarProducts(p, products, 8).map(s => s.product);
-      map.set(p.id, similars);
+      const siblings = findSiblingNumberedProducts(p, products);
+      map.set(p.id, siblings);
     }
     return map;
   }, [products]);
 
-  // Filtered and Sorted Products (with adjacent grouping for very similar items)
+  // Filtered and Sorted Products (arranged by trailing parenthesized number or selected sort)
   const filteredProducts = useMemo(() => {
     const rawFiltered = products.filter((p) => {
       // Search filter
@@ -469,6 +469,11 @@ export default function App() {
       return true;
     });
 
+    // If sorting by parentheses number is active or sortOption is 'number-in-parentheses':
+    if (sortByParenthesesNumber || sortOption === 'number-in-parentheses') {
+      return [...rawFiltered].sort(compareProductsByTrailingParenthesizedNumber);
+    }
+
     const getComparator = (option: SortOption): ((a: Product, b: Product) => number) => {
       switch (option) {
         case 'price-asc':
@@ -479,8 +484,6 @@ export default function App() {
           return (a, b) => (b.rating || 0) - (a.rating || 0);
         case 'name-asc':
           return (a, b) => a.title.localeCompare(b.title, 'uk');
-        case 'similar':
-          return (a, b) => a.title.localeCompare(b.title, 'uk');
         case 'popular':
         default:
           return (a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0);
@@ -488,14 +491,8 @@ export default function App() {
     };
 
     const comparator = getComparator(sortOption);
-
-    // Group similar items adjacent if groupBySimilar is ON or sortOption is 'similar' or 'popular'
-    if (groupBySimilar || sortOption === 'similar') {
-      return groupSimilarProductsAdjacent(rawFiltered, comparator);
-    }
-
     return [...rawFiltered].sort(comparator);
-  }, [products, searchTerm, selectedCategory, sortOption, onlyInStock, onlyDiscounted, groupBySimilar]);
+  }, [products, searchTerm, selectedCategory, sortOption, onlyInStock, onlyDiscounted, sortByParenthesesNumber]);
 
   // Cart operations
   const handleAddToCart = (product: Product, quantity = 1) => {
@@ -870,13 +867,28 @@ export default function App() {
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             sortOption={sortOption}
-            onSortChange={setSortOption}
+            onSortChange={(opt) => {
+              setSortOption(opt);
+              if (opt === 'number-in-parentheses') {
+                setSortByParenthesesNumber(true);
+              } else {
+                setSortByParenthesesNumber(false);
+              }
+            }}
             onlyInStock={onlyInStock}
             onToggleInStock={() => setOnlyInStock(!onlyInStock)}
             onlyDiscounted={onlyDiscounted}
             onToggleDiscounted={() => setOnlyDiscounted(!onlyDiscounted)}
-            groupBySimilar={groupBySimilar}
-            onToggleGroupBySimilar={() => setGroupBySimilar(!groupBySimilar)}
+            sortByParenthesesNumber={sortByParenthesesNumber}
+            onToggleSortByParenthesesNumber={() => {
+              const next = !sortByParenthesesNumber;
+              setSortByParenthesesNumber(next);
+              if (next) {
+                setSortOption('number-in-parentheses');
+              } else {
+                setSortOption('popular');
+              }
+            }}
             totalCount={filteredProducts.length}
           />
 
@@ -891,7 +903,7 @@ export default function App() {
                     key={product.id}
                     product={product}
                     cartQuantity={currentQty}
-                    similarCount={similarProductsMap.get(product.id)?.length || 0}
+                    siblingCount={siblingProductsMap.get(product.id)?.length || 0}
                     onAddToCart={handleAddToCart}
                     onUpdateCartQuantity={handleUpdateCartQuantity}
                     onOpenDetails={setSelectedProduct}
@@ -1178,7 +1190,7 @@ export default function App() {
         isInCart={selectedProduct ? cart.some(item => item.product.id === selectedProduct.id) : false}
         isAdmin={isAdmin}
         onEditProduct={handleOpenEditProduct}
-        similarProducts={selectedProduct ? (similarProductsMap.get(selectedProduct.id) || []) : []}
+        siblingVariants={selectedProduct ? (siblingProductsMap.get(selectedProduct.id) || []) : []}
         onSelectProduct={setSelectedProduct}
       />
 

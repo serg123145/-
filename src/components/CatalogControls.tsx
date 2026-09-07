@@ -3,7 +3,7 @@ import {
   ArrowUpDown, 
   CheckCircle2, 
   TrendingDown, 
-  Layers
+  ListOrdered
 } from 'lucide-react';
 import { SortOption } from '../types';
 
@@ -17,8 +17,8 @@ interface CatalogControlsProps {
   onToggleInStock: () => void;
   onlyDiscounted: boolean;
   onToggleDiscounted: () => void;
-  groupBySimilar?: boolean;
-  onToggleGroupBySimilar?: () => void;
+  sortByParenthesesNumber?: boolean;
+  onToggleSortByParenthesesNumber?: () => void;
   totalCount: number;
 }
 
@@ -29,8 +29,8 @@ export const CatalogControls: React.FC<CatalogControlsProps> = ({
   onToggleInStock,
   onlyDiscounted,
   onToggleDiscounted,
-  groupBySimilar = true,
-  onToggleGroupBySimilar,
+  sortByParenthesesNumber = true,
+  onToggleSortByParenthesesNumber,
   totalCount
 }) => {
   return (
@@ -76,21 +76,21 @@ export const CatalogControls: React.FC<CatalogControlsProps> = ({
           <span>Зі знижкою</span>
         </button>
 
-        {/* Group Similar Toggle */}
-        {onToggleGroupBySimilar && (
+        {/* Sort by Parentheses Number Toggle */}
+        {onToggleSortByParenthesesNumber && (
           <button
             type="button"
-            onClick={onToggleGroupBySimilar}
-            title="Товари зі схожими назвами відображаються поруч один біля одного"
+            onClick={onToggleSortByParenthesesNumber}
+            title="Розташовувати товари за цифрами в кінці назви що в дужках: (1), (2), (3)..."
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border cursor-pointer ${
-              groupBySimilar
-                ? 'bg-amber-500/15 text-amber-900 border-amber-400/60 font-bold'
+              sortByParenthesesNumber
+                ? 'bg-amber-500/15 text-amber-900 border-amber-400/60 font-bold shadow-2xs'
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
             }`}
           >
-            <Layers className={`w-3.5 h-3.5 ${groupBySimilar ? 'text-amber-700' : 'text-slate-400'}`} />
-            <span>Схожі назви поруч</span>
-            {groupBySimilar && (
+            <ListOrdered className={`w-3.5 h-3.5 ${sortByParenthesesNumber ? 'text-amber-700' : 'text-slate-400'}`} />
+            <span>За цифрами в дужках</span>
+            {sortByParenthesesNumber && (
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             )}
           </button>
@@ -104,8 +104,8 @@ export const CatalogControls: React.FC<CatalogControlsProps> = ({
             onChange={(e) => onSortChange(e.target.value as SortOption)}
             className="bg-transparent text-xs font-semibold text-slate-800 outline-hidden cursor-pointer"
           >
-            <option value="popular">За популярністю (схожі поруч)</option>
-            <option value="similar">Схожі за назвою разом</option>
+            <option value="number-in-parentheses">За цифрами в дужках (1, 2, 3...)</option>
+            <option value="popular">За популярністю</option>
             <option value="rating">За рейтингом</option>
             <option value="price-asc">Від дешевих до дорогих</option>
             <option value="price-desc">Від дорогих до дешевих</option>

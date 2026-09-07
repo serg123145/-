@@ -4,7 +4,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-001',
     sku: 'TRK-SW-CROSS-4',
-    title: 'Хрестоподібна розв\'язка 4-напрямкова 3D (X-Cross)',
+    title: 'Хрестоподібна розв\'язка 4-напрямкова 3D (1)',
     category: 'Стрілки та розв\'язки',
     price: 185,
     oldPrice: 220,
@@ -19,14 +19,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
       'Сумісність': 'Brio, IKEA Lillabo, Hape, Viga, Edwone',
       'Матеріал': 'Сертифікований безпечний ECO PLA-пластик',
       'Тип з\'єднань': 'Стандартні пази "тато/мама"',
-      'Габарити': '120 x 120 x 12 мм',
-      'Колір за замовчуванням': 'Сірий базальт (доступні інші кольори)'
+      'Габарити': '120 x 120 x 12 мм'
     }
   },
   {
     id: 'TRK-002',
     sku: 'TRK-DEPOT-5W',
-    title: 'Велике віялове локомотивне депо на 5 колій з дахом',
+    title: 'Велике віялове локомотивне депо на 5 колій з дахом (5)',
     category: 'Депо та тунелі',
     price: 690,
     oldPrice: 790,
@@ -48,7 +47,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-003',
     sku: 'TRK-TURN-6W',
-    title: 'Поворотний круг для потягів на 6 виходів (Turntable 360°)',
+    title: 'Поворотний круг для потягів на 6 виходів (3)',
     category: 'Стрілки та розв\'язки',
     price: 340,
     oldPrice: 390,
@@ -111,7 +110,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-006',
     sku: 'TRK-TUN-MOUNTAIN',
-    title: 'Двоколійний гірський тунель з оглядовим мостом',
+    title: 'Двоколійний гірський тунель з оглядовим мостом (10)',
     category: 'Депо та тунелі',
     price: 420,
     oldPrice: 480,
@@ -152,7 +151,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-008',
     sku: 'TRK-SW-T-JUNCTION',
-    title: 'Т-подібна симетрична розвилка з перемикачем напрямку',
+    title: 'Т-подібна симетрична розвилка з перемикачем напрямку (7)',
     category: 'Стрілки та розв\'язки',
     price: 210,
     oldPrice: 245,
@@ -172,7 +171,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-009',
     sku: 'TRK-CRANE-MAG',
-    title: 'Вантажний магнітний портальний кран з лебідкою',
+    title: 'Вантажний магнітний портальний кран з лебідкою (9)',
     category: 'Аксесуари та станції',
     price: 360,
     oldPrice: 420,
@@ -206,14 +205,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     reviewsCount: 89,
     specs: {
       'Комплект': '4x папа-папа + 4x мама-мама',
-      'Колір': 'Деревний бежевий або яскравий мультиколор',
       'Матеріал': 'Екологічний міцний біопластик PLA'
     }
   },
   {
     id: 'TRK-011',
     sku: 'TRK-BRG-SUSP-30',
-    title: 'Червоний підвісний міст з арками 30 см (Suspension Bridge)',
+    title: 'Червоний підвісний міст з арками 30 см (11)',
     category: 'Мости та опори',
     price: 380,
     oldPrice: 440,
@@ -293,7 +291,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'TRK-015',
     sku: 'TRK-SW-CROSS-6',
-    title: 'Хрестоподібна розв\'язка 6-напрямкова 3D (Star-Cross)',
+    title: 'Хрестоподібна розв\'язка 6-напрямкова 3D (15)',
     category: 'Стрілки та розв\'язки',
     price: 260,
     oldPrice: 310,

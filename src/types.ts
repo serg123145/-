@@ -80,8 +80,8 @@ export interface NotificationSettings {
 }
 
 export type SortOption = 
+  | 'number-in-parentheses'
   | 'popular'
-  | 'similar'
   | 'price-asc'
   | 'price-desc'
   | 'rating'
