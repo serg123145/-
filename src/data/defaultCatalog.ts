@@ -11,6 +11,11 @@ export const DEFAULT_PRODUCTS: Product[] = [
     stock: 24,
     inStock: true,
     imageUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596464716127-f2a829822301?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=800&auto=format&fit=crop&q=80'
+    ],
     description: 'Унікальне перехрестя на 4 колії, що дозволяє потягам перетинати маршрути під прямим кутом без зіткнення коліс. Ідеальна геометрія та плавний хід потягів.',
     badge: 'Хіт продажів',
     rating: 4.9,
@@ -32,6 +37,11 @@ export const DEFAULT_PRODUCTS: Product[] = [
     stock: 8,
     inStock: true,
     imageUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80'
+    ],
     description: 'Масштабне кругове депо для паркування улюблених потягів та вагонів. Розраховане на 5 повнорозмірних складів. Модульний знімний дах для зручної гри.',
     badge: 'Топ набір',
     rating: 5.0,
@@ -54,6 +64,11 @@ export const DEFAULT_PRODUCTS: Product[] = [
     stock: 14,
     inStock: true,
     imageUrl: 'https://images.unsplash.com/photo-1596464716127-f2a829822301?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1596464716127-f2a829822301?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1533230808558-701ddc4bad36?w=800&auto=format&fit=crop&q=80'
+    ],
     description: 'Центральний механічний поворотний круг з плавним обертанням на 360 градусів. Дозволяє розвертати локомотиви та направляти їх у будь-яку з 6 гілок колії.',
     badge: 'Must Have',
     rating: 4.9,

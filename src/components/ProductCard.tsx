@@ -9,7 +9,10 @@ import {
   Copy, 
   Minus,
   Plus,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Product } from '../types';
 import { extractTrailingParenthesizedNumber } from '../utils/productOrdering';
@@ -48,6 +51,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const currentInCartCount = cartQuantity > 0 ? cartQuantity : (isInCart ? 1 : 0);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+
+  const photosList = (product.images && product.images.length > 0)
+    ? product.images
+    : (product.imageUrl ? [product.imageUrl] : ['https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80']);
+
+  const currentPhotoUrl = photosList[activePhotoIdx] || photosList[0] || product.imageUrl;
 
   return (
     <div 
@@ -64,7 +74,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         onClick={() => onOpenDetails(product)}
       >
         <img
-          src={product.imageUrl}
+          key={currentPhotoUrl}
+          src={currentPhotoUrl}
           alt={product.title}
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
@@ -73,6 +84,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
           }}
         />
+
+        {/* Multi-Photo Indicator Badge */}
+        {photosList.length > 1 && (
+          <div className="absolute bottom-2.5 left-2.5 z-10 px-2 py-0.5 rounded-full bg-slate-950/75 backdrop-blur-xs text-white text-[10px] font-semibold flex items-center gap-1 shadow-sm">
+            <ImageIcon className="w-3 h-3 text-amber-400" />
+            <span>{activePhotoIdx + 1}/{photosList.length}</span>
+          </div>
+        )}
+
+        {/* Quick Carousel Arrows on Card (shown on hover if >1 image) */}
+        {photosList.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivePhotoIdx(i => (i > 0 ? i - 1 : photosList.length - 1));
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs shadow-md"
+              title="Попереднє фото"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivePhotoIdx(i => (i < photosList.length - 1 ? i + 1 : 0));
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs shadow-md"
+              title="Наступне фото"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
 
         {/* Top Badges */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">

@@ -252,11 +252,24 @@ export function convertTableToProducts(rows: any[][]): Product[] {
       }
     }
 
-    // Parse image
-    let imageUrl = imageIdx !== undefined && row[imageIdx] ? String(row[imageIdx]).trim() : '';
-    if (!imageUrl || !imageUrl.startsWith('http')) {
+    // Parse image(s)
+    let rawImageStr = imageIdx !== undefined && row[imageIdx] ? String(row[imageIdx]).trim() : '';
+    let parsedImages: string[] = [];
+    if (rawImageStr) {
+      const splitUrls = rawImageStr
+        .split(/[\n,;]+/)
+        .map(s => s.trim())
+        .filter(s => s.startsWith('http://') || s.startsWith('https://'));
+      if (splitUrls.length > 0) {
+        parsedImages = splitUrls;
+      }
+    }
+
+    let imageUrl = parsedImages[0] || (rawImageStr.startsWith('http') ? rawImageStr : '');
+    if (!imageUrl) {
       // Fallback clean tech image
       imageUrl = 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&auto=format&fit=crop&q=80';
+      parsedImages = [imageUrl];
     }
 
     const description = descIdx !== undefined && row[descIdx] ? String(row[descIdx]).trim() : '';
@@ -273,6 +286,7 @@ export function convertTableToProducts(rows: any[][]): Product[] {
       stock,
       inStock,
       imageUrl,
+      images: parsedImages.length > 0 ? parsedImages : [imageUrl],
       description: description || `Якісний товар "${rawTitle}" за привабливою ціною.`,
       badge: badge || undefined,
       rating: rating || 4.8,
@@ -457,7 +471,7 @@ export function exportProductsToCSV(products: Product[]): string {
     escapeCSV(p.price),
     escapeCSV(p.oldPrice || ''),
     escapeCSV(p.stock),
-    escapeCSV(p.imageUrl),
+    escapeCSV(p.images && p.images.length > 0 ? p.images.join(', ') : p.imageUrl),
     escapeCSV(p.description),
     escapeCSV(p.badge || ''),
     escapeCSV(p.rating || 5.0)

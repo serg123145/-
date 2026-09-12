@@ -10,12 +10,33 @@ import { Product } from '../types';
  * never exceeds the browser's 5MB quota limit.
  */
 function createLightweightProducts(products: Product[]): Product[] {
+  const fallbackUrl = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
   return products.map(p => {
+    let newImageUrl = p.imageUrl;
+    let newImages = p.images;
+    let modified = false;
+
     // If imageUrl is a huge base64 data url (> 20KB), replace with placeholder or compact version in local fallback cache
     if (p.imageUrl && p.imageUrl.startsWith('data:') && p.imageUrl.length > 20000) {
+      newImageUrl = fallbackUrl;
+      modified = true;
+    }
+
+    if (Array.isArray(p.images)) {
+      newImages = p.images.map(img => {
+        if (img && img.startsWith('data:') && img.length > 20000) {
+          modified = true;
+          return fallbackUrl;
+        }
+        return img;
+      });
+    }
+
+    if (modified) {
       return {
         ...p,
-        imageUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80'
+        imageUrl: newImageUrl,
+        images: newImages
       };
     }
     return p;

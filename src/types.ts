@@ -8,6 +8,7 @@ export interface Product {
   stock: number;
   inStock: boolean;
   imageUrl: string;
+  images?: string[];
   description: string;
   badge?: string;
   rating: number;

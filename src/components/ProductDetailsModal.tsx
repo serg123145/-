@@ -7,9 +7,12 @@ import {
   Sparkles, 
   Minus, 
   Plus, 
-  Edit3,
-  Check,
-  ListOrdered
+  Edit3, 
+  Check, 
+  ListOrdered,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Product } from '../types';
 import { extractTrailingParenthesizedNumber } from '../utils/productOrdering';
@@ -40,14 +43,32 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onSelectProduct
 }) => {
   const [quantity, setQuantity] = useState(1);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     if (product) {
       setQuantity(cartQuantity > 0 ? cartQuantity : 1);
+      setActiveImageIndex(0);
     }
   }, [product, cartQuantity]);
 
   if (!product) return null;
+
+  const imagesList = (product.images && product.images.length > 0)
+    ? product.images
+    : (product.imageUrl ? [product.imageUrl] : ['https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80']);
+
+  const currentImageUrl = imagesList[activeImageIndex] || imagesList[0] || product.imageUrl;
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex(i => (i > 0 ? i - 1 : imagesList.length - 1));
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex(i => (i < imagesList.length - 1 ? i + 1 : 0));
+  };
 
   const discountPercent = product.oldPrice && product.oldPrice > product.price
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
@@ -84,17 +105,47 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             
             {/* Image Gallery Column */}
-            <div className="space-y-4">
-              <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-inner">
+            <div className="space-y-3">
+              {/* Main Active Image with Prev/Next Controls */}
+              <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-inner group">
                 <img
-                  src={product.imageUrl}
-                  alt={product.title}
-                  className="w-full h-full object-cover object-center"
+                  key={currentImageUrl}
+                  src={currentImageUrl}
+                  alt={`${product.title} - фото ${activeImageIndex + 1}`}
+                  className="w-full h-full object-cover object-center transition-opacity duration-200"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
                   }}
                 />
+
+                {/* Left/Right Navigation Arrows if multiple photos */}
+                {imagesList.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevImage}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all opacity-80 group-hover:opacity-100 backdrop-blur-xs shadow-md"
+                      title="Попереднє фото"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextImage}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all opacity-80 group-hover:opacity-100 backdrop-blur-xs shadow-md"
+                      title="Наступне фото"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+
+                    {/* Counter Badge at bottom right */}
+                    <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-slate-950/75 backdrop-blur-xs text-white text-xs font-semibold flex items-center gap-1.5 shadow-md">
+                      <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{activeImageIndex + 1} / {imagesList.length}</span>
+                    </div>
+                  </>
+                )}
 
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
@@ -110,6 +161,34 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Thumbnails Row if multiple photos */}
+              {imagesList.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5">
+                  {imagesList.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                        idx === activeImageIndex
+                          ? 'border-amber-500 ring-2 ring-amber-500/30 shadow-xs'
+                          : 'border-slate-200 opacity-60 hover:opacity-100 hover:border-slate-400'
+                      }`}
+                      title={`Переглянути фото ${idx + 1}`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Мініатюра ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Trust Badges */}
               <div className="grid grid-cols-2 gap-3 pt-2">
