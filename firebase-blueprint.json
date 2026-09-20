@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Store product item for wooden train tracks and 3D printed accessories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "oldPrice": { "type": "number" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "sku": { "type": "string" },
+        "image": { "type": "string" },
+        "images": { "type": "array" },
+        "features": { "type": "array" },
+        "isNew": { "type": "boolean" },
+        "isHit": { "type": "boolean" }
+      },
+      "required": ["id", "title", "price", "category", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "city": { "type": "string" },
+        "deliveryType": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "paymentType": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["orderId", "customerName", "phone", "items", "totalAmount"]
+    },
+    "StoreInfo": {
+      "title": "StoreInfo",
+      "description": "Store settings and branding",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string" },
+        "brandAccent": { "type": "string" },
+        "tagline": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Catalog of railway 3D accessories"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "List of customer orders"
+    },
+    "/store_info/{docId}": {
+      "schema": "StoreInfo",
+      "description": "Store configuration and notification settings"
+    }
+  }
+}

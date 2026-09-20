@@ -1,47 +1,7 @@
 /**
  * Safe Local Storage Utility
- * Prevents Uncaught QuotaExceededError and provides fallback handling for large objects.
+ * Prevents Uncaught QuotaExceededError and provides fallback handling for local caches.
  */
-
-import { Product } from '../types';
-
-/**
- * Strips heavy data: URLs from product catalog to ensure fallback caching in localStorage
- * never exceeds the browser's 5MB quota limit.
- */
-function createLightweightProducts(products: Product[]): Product[] {
-  const fallbackUrl = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80';
-  return products.map(p => {
-    let newImageUrl = p.imageUrl;
-    let newImages = p.images;
-    let modified = false;
-
-    // If imageUrl is a huge base64 data url (> 20KB), replace with placeholder or compact version in local fallback cache
-    if (p.imageUrl && p.imageUrl.startsWith('data:') && p.imageUrl.length > 20000) {
-      newImageUrl = fallbackUrl;
-      modified = true;
-    }
-
-    if (Array.isArray(p.images)) {
-      newImages = p.images.map(img => {
-        if (img && img.startsWith('data:') && img.length > 20000) {
-          modified = true;
-          return fallbackUrl;
-        }
-        return img;
-      });
-    }
-
-    if (modified) {
-      return {
-        ...p,
-        imageUrl: newImageUrl,
-        images: newImages
-      };
-    }
-    return p;
-  });
-}
 
 export function safeLocalStorageSet(key: string, value: any): boolean {
   try {
@@ -56,18 +16,8 @@ export function safeLocalStorageSet(key: string, value: any): boolean {
       error?.code === 1014;
 
     if (isQuotaError) {
-      // Special compaction logic for product catalog: strip bulky base64 data URLs for local caching
-      if (key === 'trk_products_catalog' && Array.isArray(value)) {
-        try {
-          const lightweight = createLightweightProducts(value);
-          localStorage.setItem(key, JSON.stringify(lightweight));
-          return true;
-        } catch (secondaryError) {
-          // Ignore - memory/Firestore state will keep the full catalog
-        }
-      }
-
-      // If other keys fail, try removing older temporary items
+      console.warn(`[SafeStorage] localStorage quota reached when saving "${key}". Using IndexedDB and in-memory cache.`);
+      // Try removing non-essential temporary items to free space
       try {
         localStorage.removeItem('trk_admin_session');
       } catch (e) {

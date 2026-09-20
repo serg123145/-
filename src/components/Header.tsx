@@ -40,6 +40,8 @@ interface HeaderProps {
   totalOrdersCount?: number;
   totalProductsCount: number;
   isCloudConnected?: boolean;
+  isQuotaExceeded?: boolean;
+  upgradeUrl?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,7 +65,9 @@ export const Header: React.FC<HeaderProps> = ({
   newOrdersCount = 0,
   totalOrdersCount = 0,
   totalProductsCount,
-  isCloudConnected = true
+  isCloudConnected = true,
+  isQuotaExceeded = false,
+  upgradeUrl
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -82,10 +86,26 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
                   Кабінет власника
                 </span>
-                {isCloudConnected && (
+                {isCloudConnected ? (
                   <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-[11px] border border-emerald-500/30" title="Хмарна база даних Firebase Firestore активна">
                     <Cloud className="w-3 h-3 text-emerald-400" />
                     <span>Хмара онлайн</span>
+                  </span>
+                ) : isQuotaExceeded ? (
+                  <a 
+                    href={upgradeUrl || '#'} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-[11px] border border-amber-500/30 transition-colors"
+                    title="Безкоштовний добовий ліміт читань Firestore вичерпано. Працює локальне збереження. Натисніть для перегляду або оновлення плану."
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span>Локальний режим (квота)</span>
+                  </a>
+                ) : (
+                  <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 font-semibold text-[11px] border border-slate-600" title="Додаток працює в автономному режимі з локальним кешем.">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    <span>Локальний режим</span>
                   </span>
                 )}
                 {newOrdersCount > 0 && (

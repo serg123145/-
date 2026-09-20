@@ -29,6 +29,7 @@ import { DEFAULT_PRODUCTS } from './data/defaultCatalog';
 import { DEFAULT_STORE_INFO } from './data/defaultStoreInfo';
 import { DEFAULT_NOTIFICATION_SETTINGS, dispatchNewOrderNotifications } from './utils/notificationService';
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from './utils/storage';
+import { idbGetProducts, idbSaveProducts, idbSaveSingleProduct, idbDeleteSingleProduct } from './utils/idbStorage';
 import { 
   subscribeToProducts, 
   subscribeToOrders, 
@@ -48,7 +49,8 @@ import {
   saveNotificationSettingsToFirestore,
   seedProductsIfEmpty,
   seedStoreInfoIfEmpty,
-  resetCatalogInFirestore
+  resetCatalogInFirestore,
+  FIRESTORE_UPGRADE_URL
 } from './services/firestoreService';
 import { isFirebaseConfigured } from './services/firebase';
 import { Header } from './components/Header';
@@ -119,8 +121,9 @@ export default function App() {
     return DEFAULT_STORE_INFO;
   });
 
-  // Firestore Cloud connection state
+  // Firestore Cloud connection and quota state
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
 
   // Initialize and synchronize with Firebase Firestore in real-time
   useEffect(() => {
@@ -128,9 +131,17 @@ export default function App() {
 
     let isMounted = true;
 
+    const handleSyncError = (_err: Error, status?: { isQuotaExceeded?: boolean }) => {
+      if (!isMounted) return;
+      setIsCloudConnected(false);
+      if (status?.isQuotaExceeded) {
+        setIsQuotaExceeded(true);
+      }
+    };
+
     // Seed database with default data if fresh
-    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(console.error);
-    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(console.error);
+    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(() => {});
+    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(() => {});
 
     // 1. Live Products listener
     const unsubProducts = subscribeToProducts(
@@ -139,9 +150,10 @@ export default function App() {
           setProducts(liveProducts);
           safeLocalStorageSet('trk_products_catalog', liveProducts);
           setIsCloudConnected(true);
+          setIsQuotaExceeded(false);
         }
       },
-      () => setIsCloudConnected(false)
+      handleSyncError
     );
 
     // 2. Live Orders listener
@@ -150,9 +162,10 @@ export default function App() {
         if (isMounted && liveOrders) {
           setOrders(liveOrders);
           safeLocalStorageSet('trk_orders_history', liveOrders);
+          setIsCloudConnected(true);
         }
       },
-      () => setIsCloudConnected(false)
+      handleSyncError
     );
 
     // 3. Live Store Info listener
@@ -161,9 +174,10 @@ export default function App() {
         if (isMounted && liveInfo && liveInfo.brandName) {
           setStoreInfo(liveInfo);
           safeLocalStorageSet('trk_store_info', liveInfo);
+          setIsCloudConnected(true);
         }
       },
-      () => setIsCloudConnected(false)
+      handleSyncError
     );
 
     // 4. Live Notification Settings listener
@@ -172,9 +186,10 @@ export default function App() {
         if (isMounted && liveSettings) {
           setNotificationSettings(liveSettings);
           safeLocalStorageSet('trk_notification_settings', liveSettings);
+          setIsCloudConnected(true);
         }
       },
-      () => setIsCloudConnected(false)
+      handleSyncError
     );
 
     // 5. Live Admin PIN listener
@@ -183,9 +198,10 @@ export default function App() {
         if (isMounted && livePin && livePin.length >= 4) {
           setAdminPin(livePin);
           safeLocalStorageSet('trk_admin_pin', livePin);
+          setIsCloudConnected(true);
         }
       },
-      () => setIsCloudConnected(false)
+      handleSyncError
     );
 
     return () => {
@@ -219,7 +235,7 @@ export default function App() {
     }
   };
 
-  // Products state with local storage persistence
+  // Products state with local storage & IndexedDB persistence
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = safeLocalStorageGet<Product[] | null>('trk_products_catalog', null);
     if (Array.isArray(saved) && saved.length > 0) {
@@ -228,9 +244,27 @@ export default function App() {
     return DEFAULT_PRODUCTS;
   });
 
-  // Save products whenever updated
+  // Restore complete catalog and high-resolution custom images from IndexedDB on startup
+  useEffect(() => {
+    let isMounted = true;
+    idbGetProducts().then((idbProducts) => {
+      if (isMounted && idbProducts && idbProducts.length > 0) {
+        setProducts(prev => {
+          // If idb has custom products or more items than defaults, use IDB
+          if (idbProducts.length !== DEFAULT_PRODUCTS.length || JSON.stringify(idbProducts) !== JSON.stringify(prev)) {
+            return idbProducts;
+          }
+          return prev;
+        });
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  // Save products whenever updated (both to IndexedDB for large image payloads and localStorage)
   useEffect(() => {
     safeLocalStorageSet('trk_products_catalog', products);
+    idbSaveProducts(products).catch(() => {});
   }, [products]);
 
   // Shopping Cart state
@@ -601,15 +635,19 @@ export default function App() {
   const handleSaveProduct = (productData: Product) => {
     setProducts(prev => {
       const existsIndex = prev.findIndex(p => p.id === productData.id);
+      let updated: Product[];
       if (existsIndex >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[existsIndex] = productData;
-        return updated;
+      } else {
+        updated = [productData, ...prev];
       }
-      return [productData, ...prev];
+      idbSaveSingleProduct(productData).catch(() => {});
+      idbSaveProducts(updated).catch(() => {});
+      return updated;
     });
 
-    saveProductToFirestore(productData).catch(console.error);
+    saveProductToFirestore(productData).catch(() => {});
 
     showToast(
       editingProduct 
@@ -627,21 +665,32 @@ export default function App() {
       title: `${product.title} (Копія)`,
       reviewsCount: 0
     };
-    setProducts(prev => [duplicated, ...prev]);
-    saveProductToFirestore(duplicated).catch(console.error);
+    setProducts(prev => {
+      const updated = [duplicated, ...prev];
+      idbSaveSingleProduct(duplicated).catch(() => {});
+      idbSaveProducts(updated).catch(() => {});
+      return updated;
+    });
+    saveProductToFirestore(duplicated).catch(() => {});
     showToast(`Створено копію товару "${product.title}"`, 'info');
   };
 
   const handleDeleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    deleteProductFromFirestore(productId).catch(console.error);
+    setProducts(prev => {
+      const updated = prev.filter(p => p.id !== productId);
+      idbDeleteSingleProduct(productId).catch(() => {});
+      idbSaveProducts(updated).catch(() => {});
+      return updated;
+    });
+    deleteProductFromFirestore(productId).catch(() => {});
     showToast('Товар видалено з каталогу', 'warning');
   };
 
   const handleResetCatalog = () => {
     setProducts(DEFAULT_PRODUCTS);
     localStorage.removeItem('trk_products_catalog');
-    resetCatalogInFirestore(DEFAULT_PRODUCTS).catch(console.error);
+    idbSaveProducts(DEFAULT_PRODUCTS).catch(() => {});
+    resetCatalogInFirestore(DEFAULT_PRODUCTS).catch(() => {});
     showToast('Каталог скинуто до початкового асортименту', 'info');
   };
 
@@ -684,6 +733,8 @@ export default function App() {
         totalOrdersCount={orders.length}
         totalProductsCount={products.length}
         isCloudConnected={isCloudConnected}
+        isQuotaExceeded={isQuotaExceeded}
+        upgradeUrl={FIRESTORE_UPGRADE_URL}
       />
 
       {/* Main Content Area */}
