@@ -129,8 +129,8 @@ export default function App() {
     let isMounted = true;
 
     // Seed database with default data if fresh
-    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(() => {});
-    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(() => {});
+    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(console.error);
+    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(console.error);
 
     // 1. Live Products listener
     const unsubProducts = subscribeToProducts(
@@ -205,8 +205,7 @@ export default function App() {
 
   // Admin PIN state (persisted locally and synced with Cloud Firestore)
   const [adminPin, setAdminPin] = useState<string>(() => {
-    const saved = safeLocalStorageGet<any>('trk_admin_pin', '7777');
-    return String(saved ?? '7777').trim();
+    return safeLocalStorageGet<string>('trk_admin_pin', '7777');
   });
 
   const handleSaveAdminPin = async (newPin: string) => {
