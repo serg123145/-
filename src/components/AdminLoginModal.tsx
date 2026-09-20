@@ -25,8 +25,11 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const [pinCode, setPinCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const getStoredPin = () => {
-    return currentPin || safeLocalStorageGet<string>('trk_admin_pin', '7777');
+  const getStoredPin = (): string => {
+    const rawPin = currentPin !== undefined && currentPin !== null 
+      ? currentPin 
+      : safeLocalStorageGet<any>('trk_admin_pin', '7777');
+    return String(rawPin ?? '7777').trim();
   };
 
   useEffect(() => {

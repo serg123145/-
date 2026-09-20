@@ -33,8 +33,11 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
   const [showPins, setShowPins] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const getStoredPin = () => {
-    return currentStoredPin || safeLocalStorageGet<string>('trk_admin_pin', '7777');
+  const getStoredPin = (): string => {
+    const rawPin = currentStoredPin !== undefined && currentStoredPin !== null 
+      ? currentStoredPin 
+      : safeLocalStorageGet<any>('trk_admin_pin', '7777');
+    return String(rawPin ?? '7777').trim();
   };
 
   useEffect(() => {
