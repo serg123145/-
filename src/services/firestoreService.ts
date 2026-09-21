@@ -91,21 +91,30 @@ function cleanForFirestore<T>(obj: T): T {
 // PRODUCTS
 // ----------------------
 
+let activeProductsUnsub: (() => void) | null = null;
+let lastProductsFetchTime = 0;
+
 export function subscribeToProducts(
   onData: (products: Product[]) => void,
   onError?: (err: Error, status?: FirestoreStatus) => void
 ) {
   if (!isFirebaseConfigured) return () => {};
 
+  // If already subscribed, return the existing cleanup
+  if (activeProductsUnsub) {
+    return activeProductsUnsub;
+  }
+
   try {
     const colRef = collection(db, 'products');
-    return onSnapshot(
+    const unsub = onSnapshot(
       colRef,
       (snapshot) => {
         const items: Product[] = [];
         snapshot.forEach((docSnap) => {
           items.push({ id: docSnap.id, ...(docSnap.data() as Omit<Product, 'id'>) });
         });
+        lastProductsFetchTime = Date.now();
         onData(items);
       },
       (error) => {
@@ -121,6 +130,12 @@ export function subscribeToProducts(
         }
       }
     );
+
+    activeProductsUnsub = () => {
+      unsub();
+      activeProductsUnsub = null;
+    };
+    return activeProductsUnsub;
   } catch (e) {
     logFirestoreError('subscribeToProducts.init', e);
     if (onError && e instanceof Error) {
@@ -157,17 +172,25 @@ export async function deleteProductFromFirestore(productId: string): Promise<voi
   }
 }
 
+// Lightweight seed: Check a single metadata document (1 read) instead of reading the entire collection (162 reads)
 export async function seedProductsIfEmpty(defaultProducts: Product[]): Promise<boolean> {
   if (!isFirebaseConfigured) return false;
   try {
-    const colRef = collection(db, 'products');
-    const snap = await getDocs(colRef);
-    if (snap.empty && defaultProducts.length > 0) {
+    const seedMetaDoc = doc(db, 'store_info', 'seed_meta');
+    const { getDoc } = await import('firebase/firestore');
+    const metaSnap = await getDoc(seedMetaDoc);
+    
+    if (metaSnap.exists() && metaSnap.data()?.seeded) {
+      return false; // Already seeded, 0 collection reads!
+    }
+
+    if (defaultProducts.length > 0) {
       const batch = writeBatch(db);
       for (const p of defaultProducts) {
         const docRef = doc(db, 'products', p.id);
         batch.set(docRef, cleanForFirestore(p));
       }
+      batch.set(seedMetaDoc, { seeded: true, seededAt: new Date().toISOString(), totalCount: defaultProducts.length });
       await batch.commit();
       return true;
     }
@@ -374,8 +397,9 @@ export async function seedStoreInfoIfEmpty(defaultStoreInfo: StoreInfo): Promise
   if (!isFirebaseConfigured) return;
   try {
     const docRef = doc(db, 'store_info', 'main');
-    const snap = await getDocs(collection(db, 'store_info'));
-    if (snap.empty) {
+    const { getDoc } = await import('firebase/firestore');
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
       await setDoc(docRef, cleanForFirestore(defaultStoreInfo));
     }
   } catch (e) {

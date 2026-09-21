@@ -16,9 +16,15 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // System collection: public read and write
+    match /system/{docId} {
+      allow read, write: if true;
+    }
+
     // Reviews collection: public read and write
     match /reviews/{reviewId} {
       allow read, write: if true;
     }
   }
 }
+
