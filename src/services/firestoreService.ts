@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { Product, OrderDetails, StoreInfo, NotificationSettings } from '../types';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/storage';
 
 export interface FirestoreStatus {
   isCloudConnected: boolean;
@@ -92,7 +93,69 @@ function cleanForFirestore<T>(obj: T): T {
 // ----------------------
 
 let activeProductsUnsub: (() => void) | null = null;
-let lastProductsFetchTime = 0;
+let lastCatalogMetaCheck = 0;
+const CATALOG_META_CHECK_INTERVAL = 1000 * 60 * 15; // Check for catalog changes at most once every 15 minutes
+
+export async function fetchProductsWithSmartCache(
+  currentProducts: Product[],
+  onData: (products: Product[]) => void,
+  onError?: (err: Error, status?: FirestoreStatus) => void
+): Promise<void> {
+  if (!isFirebaseConfigured) return;
+
+  const now = Date.now();
+  const localMeta = safeLocalStorageGet<{ lastUpdated: number; totalCount: number } | null>('trk_catalog_meta', null);
+
+  // If we checked recently (within 15 minutes) and have products, avoid any cloud reads
+  if (currentProducts.length > 0 && localMeta && (now - lastCatalogMetaCheck < CATALOG_META_CHECK_INTERVAL)) {
+    return;
+  }
+
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    const metaDocRef = doc(db, 'store_info', 'catalog_meta');
+    const metaSnap = await getDoc(metaDocRef);
+    lastCatalogMetaCheck = now;
+
+    if (metaSnap.exists()) {
+      const serverMeta = metaSnap.data() as { lastUpdated?: number; totalCount?: number };
+      const serverLastUpdated = serverMeta.lastUpdated || 0;
+      const localLastUpdated = localMeta?.lastUpdated || 0;
+
+      // If local cache is fresh and counts match, no need to download 162 docs!
+      if (currentProducts.length > 0 && localLastUpdated >= serverLastUpdated && localMeta?.totalCount === currentProducts.length) {
+        return;
+      }
+    }
+
+    // Server has newer products or cache is empty -> fetch collection
+    const colRef = collection(db, 'products');
+    const snapshot = await getDocs(colRef);
+    const items: Product[] = [];
+    snapshot.forEach((docSnap) => {
+      items.push({ id: docSnap.id, ...(docSnap.data() as Omit<Product, 'id'>) });
+    });
+
+    if (items.length > 0) {
+      safeLocalStorageSet('trk_catalog_meta', {
+        lastUpdated: metaSnap.exists() ? (metaSnap.data()?.lastUpdated || now) : now,
+        totalCount: items.length
+      });
+      onData(items);
+    }
+  } catch (error) {
+    logFirestoreError('fetchProductsWithSmartCache', error);
+    if (onError && error instanceof Error) {
+      onError(error, {
+        isCloudConnected: false,
+        isQuotaExceeded: isQuotaExceededError(error),
+        isUnavailable: isUnavailableError(error),
+        errorMessage: error.message,
+        upgradeUrl: FIRESTORE_UPGRADE_URL
+      });
+    }
+  }
+}
 
 export function subscribeToProducts(
   onData: (products: Product[]) => void,
@@ -114,7 +177,7 @@ export function subscribeToProducts(
         snapshot.forEach((docSnap) => {
           items.push({ id: docSnap.id, ...(docSnap.data() as Omit<Product, 'id'>) });
         });
-        lastProductsFetchTime = Date.now();
+        lastCatalogMetaCheck = Date.now();
         onData(items);
       },
       (error) => {
@@ -151,12 +214,27 @@ export function subscribeToProducts(
   }
 }
 
+async function touchCatalogMeta(totalCount?: number) {
+  try {
+    const metaDocRef = doc(db, 'store_info', 'catalog_meta');
+    const data: Record<string, any> = { lastUpdated: Date.now() };
+    if (typeof totalCount === 'number') {
+      data.totalCount = totalCount;
+    }
+    await setDoc(metaDocRef, data, { merge: true });
+    safeLocalStorageSet('trk_catalog_meta', data);
+  } catch (e) {
+    // Non-blocking
+  }
+}
+
 export async function saveProductToFirestore(product: Product): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
     const docRef = doc(db, 'products', product.id);
     const data = cleanForFirestore(product);
     await setDoc(docRef, data, { merge: true });
+    touchCatalogMeta();
   } catch (e) {
     logFirestoreError('saveProductToFirestore', e);
   }
@@ -167,6 +245,7 @@ export async function deleteProductFromFirestore(productId: string): Promise<voi
   try {
     const docRef = doc(db, 'products', productId);
     await deleteDoc(docRef);
+    touchCatalogMeta();
   } catch (e) {
     logFirestoreError('deleteProductFromFirestore', e);
   }

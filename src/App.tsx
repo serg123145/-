@@ -31,6 +31,7 @@ import { DEFAULT_NOTIFICATION_SETTINGS, dispatchNewOrderNotifications } from './
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from './utils/storage';
 import { idbGetProducts, idbSaveProducts, idbSaveSingleProduct, idbDeleteSingleProduct } from './utils/idbStorage';
 import { 
+  fetchProductsWithSmartCache,
   subscribeToProducts, 
   subscribeToOrders, 
   subscribeToStoreInfo, 
@@ -121,119 +122,10 @@ export default function App() {
     return DEFAULT_STORE_INFO;
   });
 
-  // Firestore Cloud connection and quota state
-  const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured);
-  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
-
-  // Initialize and synchronize with Firebase Firestore in real-time
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-
-    let isMounted = true;
-
-    const handleSyncError = (_err: Error, status?: { isQuotaExceeded?: boolean }) => {
-      if (!isMounted) return;
-      setIsCloudConnected(false);
-      if (status?.isQuotaExceeded) {
-        setIsQuotaExceeded(true);
-      }
-    };
-
-    // Seed database with default data if fresh
-    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(() => {});
-    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(() => {});
-
-    // 1. Live Products listener
-    const unsubProducts = subscribeToProducts(
-      (liveProducts) => {
-        if (isMounted && liveProducts.length > 0) {
-          setProducts(liveProducts);
-          safeLocalStorageSet('trk_products_catalog', liveProducts);
-          setIsCloudConnected(true);
-          setIsQuotaExceeded(false);
-        }
-      },
-      handleSyncError
-    );
-
-    // 2. Live Orders listener
-    const unsubOrders = subscribeToOrders(
-      (liveOrders) => {
-        if (isMounted && liveOrders) {
-          setOrders(liveOrders);
-          safeLocalStorageSet('trk_orders_history', liveOrders);
-          setIsCloudConnected(true);
-        }
-      },
-      handleSyncError
-    );
-
-    // 3. Live Store Info listener
-    const unsubStoreInfo = subscribeToStoreInfo(
-      (liveInfo) => {
-        if (isMounted && liveInfo && liveInfo.brandName) {
-          setStoreInfo(liveInfo);
-          safeLocalStorageSet('trk_store_info', liveInfo);
-          setIsCloudConnected(true);
-        }
-      },
-      handleSyncError
-    );
-
-    // 4. Live Notification Settings listener
-    const unsubSettings = subscribeToNotificationSettings(
-      (liveSettings) => {
-        if (isMounted && liveSettings) {
-          setNotificationSettings(liveSettings);
-          safeLocalStorageSet('trk_notification_settings', liveSettings);
-          setIsCloudConnected(true);
-        }
-      },
-      handleSyncError
-    );
-
-    // 5. Live Admin PIN listener
-    const unsubPin = subscribeToAdminPin(
-      (livePin) => {
-        if (isMounted && livePin && livePin.length >= 4) {
-          setAdminPin(livePin);
-          safeLocalStorageSet('trk_admin_pin', livePin);
-          setIsCloudConnected(true);
-        }
-      },
-      handleSyncError
-    );
-
-    return () => {
-      isMounted = false;
-      unsubProducts();
-      unsubOrders();
-      unsubStoreInfo();
-      unsubSettings();
-      unsubPin();
-    };
-  }, []);
-
-  // Save store info when updated
-  useEffect(() => {
-    safeLocalStorageSet('trk_store_info', storeInfo);
-  }, [storeInfo]);
-
   // Admin PIN state (persisted locally and synced with Cloud Firestore)
   const [adminPin, setAdminPin] = useState<string>(() => {
     return safeLocalStorageGet<string>('trk_admin_pin', '7777');
   });
-
-  const handleSaveAdminPin = async (newPin: string) => {
-    const cleanPin = newPin.trim();
-    setAdminPin(cleanPin);
-    safeLocalStorageSet('trk_admin_pin', cleanPin);
-    try {
-      await saveAdminPinToFirestore(cleanPin);
-    } catch (e) {
-      console.error('Failed to sync PIN to Firestore:', e);
-    }
-  };
 
   // Products state with local storage & IndexedDB persistence
   const [products, setProducts] = useState<Product[]>(() => {
@@ -244,13 +136,23 @@ export default function App() {
     return DEFAULT_PRODUCTS;
   });
 
+  // Admin User Auth state
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
+    return safeLocalStorageGet<AdminUser | null>('trk_admin_session', null);
+  });
+
+  const isAdmin = !!adminUser;
+
+  // Firestore Cloud connection and quota state
+  const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+
   // Restore complete catalog and high-resolution custom images from IndexedDB on startup
   useEffect(() => {
     let isMounted = true;
     idbGetProducts().then((idbProducts) => {
       if (isMounted && idbProducts && idbProducts.length > 0) {
         setProducts(prev => {
-          // If idb has custom products or more items than defaults, use IDB
           if (idbProducts.length !== DEFAULT_PRODUCTS.length || JSON.stringify(idbProducts) !== JSON.stringify(prev)) {
             return idbProducts;
           }
@@ -267,6 +169,138 @@ export default function App() {
     idbSaveProducts(products).catch(() => {});
   }, [products]);
 
+  // Synchronize store info and product catalog with Firebase with smart caching
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    let isMounted = true;
+
+    const handleSyncError = (_err: Error, status?: { isQuotaExceeded?: boolean }) => {
+      if (!isMounted) return;
+      setIsCloudConnected(false);
+      if (status?.isQuotaExceeded) {
+        setIsQuotaExceeded(true);
+      }
+    };
+
+    // Seed database with default data if completely fresh
+    seedProductsIfEmpty(DEFAULT_PRODUCTS).catch(() => {});
+    seedStoreInfoIfEmpty(DEFAULT_STORE_INFO).catch(() => {});
+
+    // Smart-cached product catalog load (0 reads if cache fresh, 1 read for meta check)
+    fetchProductsWithSmartCache(
+      products,
+      (liveProducts) => {
+        if (isMounted && liveProducts.length > 0) {
+          setProducts(liveProducts);
+          safeLocalStorageSet('trk_products_catalog', liveProducts);
+          setIsCloudConnected(true);
+          setIsQuotaExceeded(false);
+        }
+      },
+      handleSyncError
+    ).catch(() => {});
+
+    // Live Store Info listener (1 single doc)
+    const unsubStoreInfo = subscribeToStoreInfo(
+      (liveInfo) => {
+        if (isMounted && liveInfo && liveInfo.brandName) {
+          setStoreInfo(liveInfo);
+          safeLocalStorageSet('trk_store_info', liveInfo);
+          setIsCloudConnected(true);
+        }
+      },
+      handleSyncError
+    );
+
+    return () => {
+      isMounted = false;
+      unsubStoreInfo();
+    };
+  }, []);
+
+  // Admin-only listeners: Only subscribe to orders, notifications, and PIN when in Admin/Owner mode
+  useEffect(() => {
+    if (!isFirebaseConfigured || !isAdmin) return;
+
+    let isMounted = true;
+
+    const handleAdminSyncError = (_err: Error, status?: { isQuotaExceeded?: boolean }) => {
+      if (!isMounted) return;
+      if (status?.isQuotaExceeded) {
+        setIsQuotaExceeded(true);
+      }
+    };
+
+    // 1. Live Orders listener (Admin only)
+    const unsubOrders = subscribeToOrders(
+      (liveOrders) => {
+        if (isMounted && liveOrders) {
+          setOrders(liveOrders);
+          safeLocalStorageSet('trk_orders_history', liveOrders);
+        }
+      },
+      handleAdminSyncError
+    );
+
+    // 2. Live Notification Settings listener (Admin only)
+    const unsubSettings = subscribeToNotificationSettings(
+      (liveSettings) => {
+        if (isMounted && liveSettings) {
+          setNotificationSettings(liveSettings);
+          safeLocalStorageSet('trk_notification_settings', liveSettings);
+        }
+      },
+      handleAdminSyncError
+    );
+
+    // 3. Live Admin PIN listener (Admin only)
+    const unsubPin = subscribeToAdminPin(
+      (livePin) => {
+        if (isMounted && livePin && livePin.length >= 4) {
+          setAdminPin(livePin);
+          safeLocalStorageSet('trk_admin_pin', livePin);
+        }
+      },
+      handleAdminSyncError
+    );
+
+    // 4. Live Products listener (Admin only for instant multi-device catalog syncing)
+    const unsubProducts = subscribeToProducts(
+      (liveProducts) => {
+        if (isMounted && liveProducts.length > 0) {
+          setProducts(liveProducts);
+          safeLocalStorageSet('trk_products_catalog', liveProducts);
+        }
+      },
+      handleAdminSyncError
+    );
+
+    return () => {
+      isMounted = false;
+      unsubOrders();
+      unsubSettings();
+      unsubPin();
+      unsubProducts();
+    };
+  }, [isAdmin]);
+
+  // Save store info when updated
+  useEffect(() => {
+    safeLocalStorageSet('trk_store_info', storeInfo);
+  }, [storeInfo]);
+
+  const handleSaveAdminPin = async (newPin: string) => {
+    const cleanPin = newPin.trim();
+    setAdminPin(cleanPin);
+    safeLocalStorageSet('trk_admin_pin', cleanPin);
+    try {
+      await saveAdminPinToFirestore(cleanPin);
+    } catch (e) {
+      console.error('Failed to sync PIN to Firestore:', e);
+    }
+  };
+
   // Shopping Cart state
   const [cart, setCart] = useState<CartItem[]>(() => {
     return safeLocalStorageGet<CartItem[]>('trk_cart_items', []);
@@ -275,13 +309,6 @@ export default function App() {
   useEffect(() => {
     safeLocalStorageSet('trk_cart_items', cart);
   }, [cart]);
-
-  // Admin User Auth state
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
-    return safeLocalStorageGet<AdminUser | null>('trk_admin_session', null);
-  });
-
-  const isAdmin = !!adminUser;
 
   const handleAdminLogin = (user: AdminUser) => {
     setAdminUser(user);
